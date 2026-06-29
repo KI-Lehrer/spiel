@@ -13,6 +13,10 @@
   --ob1: #ffa652;
   --ob2: #ffcf5a;
   --ob3: #8bd17c;
+  --ob4: #c47aff;
+  --ob5: #ff82a9;
+  --ob6: #5bc8f5;
+  --ob7: #f76e6e;
   --gem: #7d9cff;
   --shield: #7ee7d8;
   --danger: #ff6b6b;
@@ -420,10 +424,22 @@ html, body {
     const w = rand(40, 120);
     const h = rand(18, 38);
     const x = rand(8, vw - w - 8);
-    const colors = ['var(--ob1)', 'var(--ob2)', 'var(--ob3)', 'var(--danger)'];
-    const c = colors[Math.floor(Math.random() * colors.length)];
+    // Farbpaare für lebendige Zwei-Ton-Gradienten
+    const colorPairs = [
+      ['#ffa652', '#ff6b1a'],  // orange
+      ['#ffcf5a', '#f0a800'],  // gelb
+      ['#8bd17c', '#3daa4e'],  // grün
+      ['#c47aff', '#8b2be2'],  // lila
+      ['#ff82a9', '#e0284f'],  // pink-rot
+      ['#5bc8f5', '#1a8fd1'],  // hellblau
+      ['#f76e6e', '#c41c1c'],  // rot
+      ['#4dd9ac', '#1a9e73'],  // türkis
+      ['#ffb347', '#d66f00'],  // dunkelorange
+      ['#a0d8ef', '#4682b4'],  // stahlblau
+    ];
+    const pair = colorPairs[Math.floor(Math.random() * colorPairs.length)];
     const vy = rand(0.4, 1.2) * speed;
-    el.style.cssText = `width:${w}px;height:${h}px;left:${x}px;top:-${h+10}px;background:linear-gradient(135deg,${c},${c}cc);box-shadow:0 4px 10px rgba(0,0,0,0.12);border-radius:10px;`;
+    el.style.cssText = `width:${w}px;height:${h}px;left:${x}px;top:-${h+10}px;background:linear-gradient(135deg,${pair[0]},${pair[1]});box-shadow:0 4px 12px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.4);border-radius:10px;`;
     el.dataset.vy = vy.toFixed(3);
     el.dataset.type = 'ob';
     gameEl.appendChild(el);
