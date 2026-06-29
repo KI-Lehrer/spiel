@@ -11,7 +11,7 @@ Das Portal ist als Single-Page-Anwendung aufgebaut, die die einzelnen Spiele in 
 
 Die Spiele sind in den jeweiligen Schüler-Ordnern abgelegt:
 * **Alex**: `Alex/spiel-alex.html` ("Phantom Escape")
-* **Bennett**: `Bennett/spiel-bennett.html` ("Runner mit treuem Hund")
+* **Bennett**: `Bennett/spiel-bennett.html` ("Rooftop Run")
 * **Ella**: `Ella/spiel-tictactoe.html` ("Tic-Tac-Toe – Schwarz/Weiss")
 * **Erin Jenny**: `Erin Jenny/spiel-erin_jenny.html` ("Süsses Endlos‑Abenteuer")
 * **Fynn**: `Fynn/spiel-fynn.html` ("Mühle")
@@ -21,7 +21,8 @@ Die Spiele sind in den jeweiligen Schüler-Ordnern abgelegt:
 * **Julian**: `Julian/spiel-julian.html` ("Runner – Welten & Parallax")
 * **Malea_Elina**: `Malea_Elina/Symbol-Run.html` ("Symbol-Run")
 * **Leandro**: `Leandro/spiel-leandro.html` ("Auto Parcours")
-* **Sarina**: `Sarina/spiel-sarina.html` ("Schulflur")
+* **Sarina**: `Sarina/Schulflur.html` ("Schulflur")
+* **Eric**: `Eric/spiel-eric.html` ("Münz-Sammler")
 
 ## 🛠️ Entstehungsgeschichte
 Die Spiele wurden von den Schülerinnen und Schülern programmiert. Die HTML-Codes wurden anschliessend aus Word- (`.docx`) und Pages-Dokumenten extrahiert, bereinigt und in diesem Repository zusammengeführt.

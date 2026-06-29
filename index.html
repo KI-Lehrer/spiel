@@ -156,6 +156,7 @@
     .card.malea_elina { --theme-color: #14b8a6; --glow: rgba(20, 184, 166, 0.25); }
     .card.leandro { --theme-color: #84cc16; --glow: rgba(132, 204, 22, 0.25); }
     .card.sarina { --theme-color: #ff6b6b; --glow: rgba(255, 107, 107, 0.25); }
+    .card.eric { --theme-color: #8b5cf6; --glow: rgba(139, 92, 246, 0.25); }
 
     .card::before {
       content: '';
@@ -480,7 +481,7 @@
       <div class="stats">
         <div class="stat-item">
           <div class="stat-dot"></div>
-          <span>12 Spiele online</span>
+          <span>13 Spiele online</span>
         </div>
       </div>
     </header>
@@ -510,20 +511,19 @@
       </div>
 
       <!-- Card: Bennett -->
-      <div class="card bennett" onclick="playGame('Bennett', 'spiel-bennett.html', 'Runner mit Hund', '#3b82f6')">
+      <div class="card bennett" onclick="playGame('Bennett', 'spiel-bennett.html', 'Rooftop Run', '#3b82f6')">
         <div class="author-badge">
           <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           Bennett
         </div>
         <div class="icon-container">
-          <!-- Runner/Hund Pfote Icon -->
+          <!-- City / Buildings Icon -->
           <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="5" r="2.5" />
-            <path d="M11 20H8v-4.5H6.5c-.8 0-1.5-.7-1.5-1.5 0-2.2 1.8-4 4-4H10l1.5-2 1.5 2h1c1.1 0 2 .9 2 2v4M16 20h-3v-4.5"/>
+            <path d="M3 21h18M5 21V8a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v13m0 0V12a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v9M7 10h2v2H7v-2zm0 4h2v2H7v-2zm8-2h2v2h-2v-2zm0 4h2v2h-2v-2z" />
           </svg>
         </div>
-        <h2 class="game-title">Runner mit treuem Hund</h2>
-        <p class="game-desc">Ein rasantes Jump-and-Run. Springe mit deinem treuen Hund über Hindernisse und laufe so weit du kannst.</p>
+        <h2 class="game-title">Rooftop Run</h2>
+        <p class="game-desc">Ein rasantes Jump-and-Run auf den Dächern. Springe über Abgründe und Hindernisse und laufe so weit du kannst!</p>
         <button class="play-btn">
           <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
           Jetzt spielen
@@ -728,7 +728,7 @@
       </div>
 
       <!-- Card: Sarina -->
-      <div class="card sarina" onclick="playGame('Sarina', 'spiel-sarina.html', 'Schulflur', '#ff6b6b')">
+      <div class="card sarina" onclick="playGame('Sarina', 'Schulflur.html', 'Schulflur', '#ff6b6b')">
         <div class="author-badge">
           <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           Sarina
@@ -741,6 +741,26 @@
         </div>
         <h2 class="game-title">Schulflur</h2>
         <p class="game-desc">Navigiere durch den Schulflur, weiche Hindernissen und Lehrern aus, sammle Münzen und schalte im Shop Pastell-Skins frei!</p>
+        <button class="play-btn">
+          <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Jetzt spielen
+        </button>
+      </div>
+
+      <!-- Card: Eric -->
+      <div class="card eric" onclick="playGame('Eric', 'spiel-eric.html', 'Münz-Sammler', '#8b5cf6')">
+        <div class="author-badge">
+          <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Eric
+        </div>
+        <div class="icon-container">
+          <!-- Crescent Moon / Stars Icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="M12 3a9 9 0 1 0 9 9 9.75 9.75 0 0 0-.67-3.4 6.75 6.75 0 0 1-7.93-7.93A9.75 9.75 0 0 0 12 3z" />
+          </svg>
+        </div>
+        <h2 class="game-title">Münz-Sammler</h2>
+        <p class="game-desc">Sammle Münzen in unheimlicher Atmosphäre und überlebe 60 Sekunden pro Level. Schalte im Shop tolle Accessoires frei!</p>
         <button class="play-btn">
           <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
           Jetzt spielen
