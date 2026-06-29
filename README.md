@@ -20,7 +20,7 @@ Die Spiele sind in den jeweiligen Schüler-Ordnern abgelegt:
 * **Nicola**: `Nicola/spiel-nicola.html` ("Schulabenteuer")
 * **Julian**: `Julian/spiel-julian.html` ("Runner – Welten & Parallax")
 * **Malea_Elina**: `Malea_Elina/Symbol-Run.html` ("Symbol-Run")
-* **Leandro**: `Leandro/spiel-leandro.html` ("Auto Parcours")
+* **Leandro**: `Leandro/auto_parcours.html` ("Auto Parcours")
 * **Sarina**: `Sarina/Schulflur.html` ("Schulflur")
 * **Eric**: `Eric/spiel-eric.html` ("Münz-Sammler")
 
