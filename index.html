@@ -157,6 +157,8 @@
     .card.leandro { --theme-color: #84cc16; --glow: rgba(132, 204, 22, 0.25); }
     .card.sarina { --theme-color: #ff6b6b; --glow: rgba(255, 107, 107, 0.25); }
     .card.eric { --theme-color: #8b5cf6; --glow: rgba(139, 92, 246, 0.25); }
+    .card.xenja { --theme-color: #ff6fb3; --glow: rgba(255, 111, 179, 0.25); }
+    .card.jaro { --theme-color: #ef4444; --glow: rgba(239, 68, 68, 0.25); }
 
     .card::before {
       content: '';
@@ -481,7 +483,7 @@
       <div class="stats">
         <div class="stat-item">
           <div class="stat-dot"></div>
-          <span>13 Spiele online</span>
+          <span>15 Spiele online</span>
         </div>
       </div>
     </header>
@@ -761,6 +763,47 @@
         </div>
         <h2 class="game-title">Münz-Sammler</h2>
         <p class="game-desc">Sammle Münzen in unheimlicher Atmosphäre und überlebe 60 Sekunden pro Level. Schalte im Shop tolle Accessoires frei!</p>
+        <button class="play-btn">
+          <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Jetzt spielen
+        </button>
+      </div>
+
+      <!-- Card: Xenja -->
+      <div class="card xenja" onclick="playGame('Xenja', 'spiel-xenja.html', 'Mein Labyrinth', '#ff6fb3')">
+        <div class="author-badge">
+          <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Xenja
+        </div>
+        <div class="icon-container">
+          <!-- Maze / Grid Icon -->
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v12M15 9v12M3 9h6M15 15h6" />
+          </svg>
+        </div>
+        <h2 class="game-title">Mein Labyrinth</h2>
+        <p class="game-desc">Steuere deine Figur durch das Labyrinth zum goldenen Feld. Passe die Form und Farbe deiner Figur an und wähle aus 3 Schwierigkeitsstufen!</p>
+        <button class="play-btn">
+          <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Jetzt spielen
+        </button>
+      </div>
+
+      <!-- Card: Jaro -->
+      <div class="card jaro" onclick="playGame('Jaro', 'spiel-jaro.html', 'Jump-and-Run', '#ef4444')">
+        <div class="author-badge">
+          <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Jaro
+        </div>
+        <div class="icon-container">
+          <!-- Flame Icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z" />
+          </svg>
+        </div>
+        <h2 class="game-title">Jump-and-Run</h2>
+        <p class="game-desc">Ein klassisches Jump-and-Run. Sammle Münzen, reise durch verschiedene Welten (Höhle und Hölle) und kaufe im Shop neue Skins!</p>
         <button class="play-btn">
           <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
           Jetzt spielen

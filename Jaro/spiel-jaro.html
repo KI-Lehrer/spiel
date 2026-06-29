@@ -1,0 +1,1026 @@
+!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Jump-and-Run — Shop, Skins, Münzen</title>
+<style>
+:root{ --text: #ffdfe0; }
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:#000;}
+#gameWrap{width:900px;max-width:95vw;padding:14px;margin:18px auto;position:relative;}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+header h1{font-size:16px;margin:0;color:var(--text);}
+#hud{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.badge{background:rgba(255,255,255,0.05);padding:6px 10px;border-radius:8px;font-size:14px;color:var(--text);border:1px solid rgba(255,255,255,0.06);}
+canvas{display:block;width:100%;height:520px;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,0.7), inset 0 -30px 80px rgba(0,0,0,0.6);}
+footer{margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+button{background:linear-gradient(180deg,#1b7fd8,#1663b7);color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;}
+button.secondary{background:linear-gradient(180deg,#334155,#24303b);}
+.hint{font-size:13px;opacity:0.9;color:var(--text);}
+#worldLabel{position:absolute;left:18px;top:12px;font-weight:700;color:var(--text);background:rgba(0,0,0,0.25);padding:6px 10px;border-radius:8px;}
+#hellChoice{display:none;position:absolute;left:50%;top:40%;transform:translate(-50%,-40%);z-index:60;width:92%;max-width:520px;}
+#hellChoice .box{background:linear-gradient(180deg,#3b0b0b,#5a0b0b);padding:20px;border-radius:12px;color:var(--text);box-shadow:0 12px 40px rgba(0,0,0,0.6);text-align:center;}
+#podest{position:absolute;left:50%;top:18%;transform:translateX(-50%);text-align:center;color:var(--text);display:none;z-index:50;}
+.podest .block{background:linear-gradient(180deg,#4b1d1d,#3a0f0f);padding:18px 28px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.5);display:inline-block;color:var(--text);}
+.confetti{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:80;}
+#startOverlay{position:absolute;left:0;top:0;width:100%;height:100%;background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.6));display:flex;align-items:center;justify-content:center;z-index:90;}
+#startOverlay .panel{background:linear-gradient(180deg,#0f1724,#071028);padding:28px 36px;border-radius:14px;text-align:center;color:var(--text);box-shadow:0 20px 60px rgba(0,0,0,0.6);}
+#startOverlay h2{margin:0 0 10px 0;font-size:20px;}
+#victoryOverlay{position:absolute;left:0;top:0;width:100%;height:100%;background:linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.75));display:none;align-items:center;justify-content:center;z-index:95;}
+#victoryCard{background:linear-gradient(180deg,#ffffff,#f3f3f8);color:#111;padding:24px 28px;border-radius:16px;text-align:center;width:70%;max-width:520px;box-shadow:0 18px 60px rgba(0,0,0,0.45);}
+#trophy{font-size:86px;line-height:1;margin-bottom:8px;color:#ffd166;text-shadow:0 6px 18px rgba(0,0,0,0.3);}
+#trophySmall{font-size:18px;color:#7a5a00;margin-top:6px;font-weight:700;}
+.smallHint{font-size:13px;color:#334;}
+#hud .badge.livesBadge{display:flex;align-items:center;gap:8px;}
+#lives{font-size:16px;color:var(--text);display:inline-flex;gap:6px;align-items:center;}
+.heart{color:#ff6b6b;font-size:18px;margin-right:2px;text-shadow:0 1px 0 rgba(0,0,0,0.25);display:inline-block;transform:translateY(1px);}
+#coinsHud{display:flex;align-items:center;gap:6px;}
+.coinIcon{width:14px;height:14px;border-radius:50%;background:linear-gradient(180deg,#ffd84d,#e0ac00);box-shadow:0 0 0 2px rgba(0,0,0,0.15) inset;}
+/* Shop */
+#shopOverlay{position:absolute;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;z-index:96;background:rgba(0,0,0,0.6);}
+#shopCard{background:linear-gradient(180deg,#0f1724,#0b1222);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;color:var(--text);width:92%;max-width:640px;box-shadow:0 20px 60px rgba(0,0,0,0.7);}
+.shopHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.shopGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+.card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;}
+.card h4{margin:0 0 6px 0;}
+.skinPreview{height:120px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:10px;}
+.priceRow{display:flex;align-items:center;gap:8px;color:#ffdca8;font-weight:700;}
+.badgeOwned{display:inline-block;background:#16a34a;color:#fff;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:6px;}
+.btnRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+button.small{padding:6px 10px;font-size:13px;}
+/* Touch-Hinweis */
+@media (max-width:520px){#gameWrap{padding:10px;}#startOverlay .panel{padding:18px 22px;}}
+</style>
+</head>
+<body>
+<div id="gameWrap">
+  <div id="worldLabel">Welt: <span id="worldName">Höhle</span></div>
+  <header>
+    <h1>Jump-and-Run — Shop, Skins, Münzen</h1>
+    <div id="hud">
+      <div class="badge">Level: <span id="level">1</span></div>
+      <div class="badge">Punkte: <span id="score">0</span></div>
+      <div class="badge livesBadge">Leben: <span id="lives">10</span></div>
+      <div class="badge" id="coinsHud"><div class="coinIcon"></div><span id="coins">0</span></div>
+      <button id="openShop" class="secondary">Shop</button>
+    </div>
+  </header>
+
+  <canvas id="game" width="900" height="520"></canvas>
+  <div class="confetti" id="confetti"></div>
+
+  <div id="hellChoice">
+    <div class="box">
+      <h2>Neue Welt freigeschaltet: Die Hölle</h2>
+      <p>Möchtest du in die Hölle reisen? 5 fordernde Levels warten.</p>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:12px;">
+        <button id="enterHell" style="background:#ff6b1a;padding:10px 14px;border-radius:8px;font-weight:700;">In die Hölle gehen</button>
+        <button id="declineHell" style="background:#444;padding:10px 14px;border-radius:8px;">Nicht jetzt</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="podest" id="podest">
+    <div class="block">
+      <h2>Gewinner!</h2>
+      <div>Du hast die Kampagne geschafft.</div>
+      <div style="margin-top:8px"><button id="restartAfterWin">Neustart</button></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="hint">Steuerung: ← → oder A D = laufen, Leertaste = springen. Tippen rechts/links zum Laufen, unten zum Springen.</div>
+    <div>
+      <button id="restart">Neu starten</button>
+      <button id="togglePause" class="secondary">Pause</button>
+    </div>
+  </footer>
+
+  <div id="startOverlay">
+    <div class="panel">
+      <h2>Jump-and-Run</h2>
+      <div style="margin-bottom:12px;" class="smallHint">Drücke START, um das Spiel zu beginnen</div>
+      <button id="startButton" style="padding:12px 22px;font-size:18px;border-radius:10px;">START</button>
+    </div>
+  </div>
+
+  <div id="victoryOverlay">
+    <div id="victoryCard">
+      <div id="trophy">🏆</div>
+      <div style="font-size:28px;font-weight:800;">Du bist auf Platz</div>
+      <div id="trophySmall">1</div>
+      <div style="margin-top:12px;color:#444;">Glückwunsch! Du hast alle Levels geschafft.</div>
+      <div style="margin-top:16px;"><button id="restartAfterVictory">Neustart</button></div>
+    </div>
+  </div>
+
+  <!-- Shop Overlay -->
+  <div id="shopOverlay">
+    <div id="shopCard">
+      <div class="shopHeader">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <h3 style="margin:0;">Shop</h3>
+          <div class="badge" id="coinsShop"><span class="coinIcon"></span> <span id="coinsInShop">0</span></div>
+        </div>
+        <button id="closeShop" class="secondary small">Schliessen</button>
+      </div>
+
+      <div class="shopGrid">
+        <div class="card" data-skin="skeleton">
+          <h4>Skelett-Skin <span id="ownedSkeleton" class="badgeOwned" style="display:none;">Gehört dir</span></h4>
+          <div class="skinPreview">
+            <canvas id="prevSkeleton" width="160" height="120"></canvas>
+          </div>
+          <div class="priceRow"><div class="coinIcon"></div> 100 Münzen</div>
+          <div class="btnRow">
+            <button id="buySkeleton" class="small">Kaufen</button>
+            <button id="equipSkeleton" class="small secondary">Anziehen</button>
+          </div>
+        </div>
+
+        <div class="card" data-skin="alien">
+          <h4>Alien-Skin <span id="ownedAlien" class="badgeOwned" style="display:none;">Gehört dir</span></h4>
+          <div class="skinPreview">
+            <canvas id="prevAlien" width="160" height="120"></canvas>
+          </div>
+          <div class="priceRow"><div class="coinIcon"></div> 500 Münzen</div>
+          <div class="btnRow">
+            <button id="buyAlien" class="small">Kaufen</button>
+            <button id="equipAlien" class="small secondary">Anziehen</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;font-size:13px;opacity:0.8;">Tipp: Münzen findest du in allen Welten. Berühre sie, um sie einzusammeln.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const levelEl = document.getElementById('level');
+  const scoreEl = document.getElementById('score');
+  const livesEl = document.getElementById('lives');
+  const coinsEl = document.getElementById('coins');
+  const coinsInShopEl = document.getElementById('coinsInShop');
+  const coinsShopBadge = document.getElementById('coinsShop');
+  const restartBtn = document.getElementById('restart');
+  const restartAfterWinBtn = document.getElementById('restartAfterWin');
+  const restartAfterVictoryBtn = document.getElementById('restartAfterVictory');
+  const togglePauseBtn = document.getElementById('togglePause');
+  const confettiContainer = document.getElementById('confetti');
+  const podestEl = document.getElementById('podest');
+  const hellChoiceEl = document.getElementById('hellChoice');
+  const enterHellBtn = document.getElementById('enterHell');
+  const declineHellBtn = document.getElementById('declineHell');
+  const worldNameEl = document.getElementById('worldName');
+  const startOverlay = document.getElementById('startOverlay');
+  const startButton = document.getElementById('startButton');
+  const victoryOverlay = document.getElementById('victoryOverlay');
+  const openShopBtn = document.getElementById('openShop');
+  const shopOverlay = document.getElementById('shopOverlay');
+  const closeShopBtn = document.getElementById('closeShop');
+  const ownedSkeleton = document.getElementById('ownedSkeleton');
+  const ownedAlien = document.getElementById('ownedAlien');
+  const buySkeletonBtn = document.getElementById('buySkeleton');
+  const buyAlienBtn = document.getElementById('buyAlien');
+  const equipSkeletonBtn = document.getElementById('equipSkeleton');
+  const equipAlienBtn = document.getElementById('equipAlien');
+
+  const prevSkeleton = document.getElementById('prevSkeleton').getContext('2d');
+  const prevAlien = document.getElementById('prevAlien').getContext('2d');
+
+  // Shop Preview Zeichnungen
+  function drawSkeletonPreview(c){
+    c.clearRect(0,0,160,120);
+    c.fillStyle = '#111'; c.fillRect(0,0,160,120);
+    // Skelett (hellgrau/weiß)
+    c.fillStyle = '#e6e6e6';
+    roundRect(c, 68, 54, 24, 36, 6); c.fill(); // Körper
+    c.fillStyle = '#f5f5f5';
+    roundRect(c, 66, 36, 28, 20, 6); c.fill(); // Kopf
+    c.fillStyle = '#444'; c.fillRect(72, 42, 4, 4); c.fillRect(84, 42, 4, 4);
+    c.fillStyle = '#d0d0d0'; c.fillRect(76, 60, 8, 4); c.fillRect(72, 68, 16, 4); // Knochenlinien
+  }
+  function drawAlienPreview(c){
+    c.clearRect(0,0,160,120);
+    c.fillStyle = '#111'; c.fillRect(0,0,160,120);
+    c.fillStyle = '#7ef07e';
+    roundRect(c, 68, 54, 24, 36, 8); c.fill(); // Körper
+    c.fillStyle = '#b7ffb7';
+    roundRect(c, 62, 36, 36, 20, 10); c.fill(); // Kopf
+    c.fillStyle = '#123'; c.fillRect(74, 44, 6, 6); c.fillRect(88, 44, 6, 6);
+  }
+  drawSkeletonPreview(prevSkeleton);
+  drawAlienPreview(prevAlien);
+
+  const W = canvas.width, H = canvas.height;
+  let keys = {}, lastTime = performance.now(), paused = false, teleporting = false;
+  let score = 0;
+  let coins = 0;
+  let lives = 10;
+  let currentLevel = 1, MAX_LEVEL = 5;
+  const gravity = 1400;
+
+  // Skins/Shop Zustand
+  let ownedSkins = { base: true, skeleton: false, alien: false };
+  let activeSkin = 'base';
+
+  // Spieler
+  const player = { x:60, y:H-150, w:36, h:48, vx:0, vy:0, speed:340, jumpForce:560, onGround:false, color:'#ffd166', invulnerable:0 };
+
+  let currentWorld = 'cave';
+  const caveLevels = [], hellLevels = [], galaxyLevels = [];
+
+  // Hilfsfunktionen für Münzen-Positionen
+  function randomCoinsOnPlatforms(plats, count){
+    const arr = [];
+    const solidPlats = plats.filter(p => !p.crystal && !p.lava && !p.hazard && p.w > 40 && p.y > 60);
+    for(let i=0;i<count;i++){
+      const p = solidPlats[Math.floor(Math.random()*solidPlats.length)] || {x:60,y:H-100,w:100,h:12};
+      const cx = p.x + 8 + Math.random()*(Math.max(10, p.w - 16));
+      const cy = p.y - 14 - Math.random()*6;
+      arr.push({x: cx, y: cy, r: 7, taken: false, pulse: Math.random()*Math.PI*2});
+    }
+    return arr;
+  }
+
+  // Höhle: Kristalle am Boden (hazard)
+  function makeCaveLevel(i){
+    const baseY = H - 30;
+    const plats = [
+      {x:0,y:baseY,w:W,h:30},
+      {x:0,y:baseY-6,w:W,h:6, crystal:true}
+    ];
+    plats.push({x:60, y: baseY - 18, w: 140, h:14});
+    plats.push({x:240, y: baseY - 64, w: 110, h:14});
+    plats.push({x:420, y: baseY - 110, w: 90, h:14});
+    plats.push({x:580, y: baseY - 70, w: 120, h:14, moving:{axis:'x', range:90, speed:40, dir:1, origin:580}});
+    const enemies = [];
+    const batCount = 1 + Math.floor(i/2);
+    for(let b=0;b<batCount;b++){
+      enemies.push({x:220 + b*160 + Math.random()*40, y: baseY - 140 - Math.random()*40, w:28, h:14, vx:(Math.random()>0.5?1:-1)*(40 + i*8), type:'bat'});
+    }
+    const goal = {x:760, y: baseY - 70, w:48, h:70};
+    const coins = randomCoinsOnPlatforms(plats, 6 + i*2);
+    return {platforms: plats, enemies: enemies, goal: goal, coins: coins};
+  }
+
+  // Hölle: Lava/Hazard
+  function makeHellLevel(i){
+    const baseY = H - 30;
+    const plats = [{x:0,y:baseY,w:W,h:30,lava:true}];
+    plats.push({x: 40, y: baseY - 40, w: Math.max(60,100 - i*4), h: 12});
+    plats.push({x: 180, y: baseY - 100, w: Math.max(40,80 - i*3), h: 12, moving:{axis:'x', range:100 + i*6, speed: 40 + i*8, dir:1, origin:180}});
+    plats.push({x: 340, y: baseY - 160, w: Math.max(36,72 - i*4), h: 12});
+    plats.push({x: 520, y: baseY - 220, w: Math.max(40,88 - i*5), h: 12, moving:{axis:'y', range:40 + i*6, speed: 45 + i*10, dir:1, origin: baseY - 220}});
+    plats.push({x: 680, y: baseY - 120, w: Math.max(28,64 - i*3), h: 12});
+    if(i >= 3){
+      plats.push({x:120, y: baseY - 6, w: 120, h: 8, hazard:true});
+    }
+    const enemies = [];
+    const count = Math.max(1, 1 + Math.floor(i/2));
+    for(let e=0;e<count;e++){
+      const ex = 220 + e*120 + Math.random()*80;
+      const ey = baseY - 46 - 16 - (Math.random()*30);
+      const speed = 60 + i*10 + Math.random()*20;
+      enemies.push({x: ex, y: ey, w: 30, h: 18, vx: (Math.random()>0.5?1:-1)*speed, type:'fire'});
+    }
+    const lastPlat = plats[plats.length - 3] || plats[plats.length - 2] || plats[plats.length - 1];
+    const goalX = Math.min(W - 64, (lastPlat.x + lastPlat.w + 120));
+    const goal = {x: goalX, y: baseY - 70, w: 48, h: 70};
+    const coins = randomCoinsOnPlatforms(plats, 6 + i*2);
+    return {platforms: plats, enemies: enemies, goal: goal, coins: coins};
+  }
+
+  // Galaxy: keine Hazard, keine fragilen Plattformen; Portal rechts
+  function makeGalaxyLevel(i){
+    const baseY = H - 30;
+    const plats = [];
+    const count = 6 + i*2;
+    let x = 40;
+    for(let p=0;p<count;p++){
+      const baseWidth = Math.max(32, 60 - i*3);
+      const w = baseWidth + (Math.random()*36);
+      const y = Math.max(80, baseY - (50 + p*24) + Math.sin(p+i)*24);
+      const movingChance = 0.45;
+      const moving = (Math.random() < movingChance)
+        ? {axis: (Math.random()>0.5?'x':'y'), range: 30 + i*18, speed: 60 + i*28, dir: (Math.random()>0.5?1:-1), origin: (Math.random()>0.5? x : y)}
+        : null;
+      const boost = (Math.random() < 0.12);
+      plats.push({x: x, y: y, w: Math.max(26, w), h: 12, moving: moving, fragile: false, boost: boost});
+      x += w + 70 + (i*14) + Math.random()*80;
+      if(x > W - 200) x = 40 + Math.random()*60;
+    }
+
+    const enemies = [];
+    const alienCount = 2 + i*2;
+    for(let a=0;a<alienCount;a++){
+      const ex = 140 + a*130 + Math.random()*160;
+      const ey = baseY - 120 - Math.random()*260;
+      const speed = 100 + i*45 + Math.random()*60;
+      enemies.push({x: ex, y: ey, w: 34, h: 22, vx: (Math.random()>0.5?1:-1)*speed, type:'alien', hover: true, damage: 1});
+    }
+
+    const goal = {x: W - 80, y: baseY - 160, w: 48, h: 70};
+    const coins = randomCoinsOnPlatforms(plats, 6 + i*2);
+    return {platforms: plats, enemies: enemies, goal: goal, coins: coins, galaxy:true};
+  }
+
+  for(let i=1;i<=5;i++) caveLevels.push(makeCaveLevel(i));
+  for(let i=1;i<=5;i++) hellLevels.push(makeHellLevel(i));
+  for(let i=1;i<=5;i++) galaxyLevels.push(makeGalaxyLevel(i));
+
+  let platforms = [], enemies = [], goal = null, levelCoins = [];
+
+  function setWorld(w){
+    currentWorld = w;
+    worldNameEl.textContent = (w === 'cave') ? 'Höhle' : (w === 'hell' ? 'Hölle' : 'Galaxy');
+    if(w === 'cave'){ MAX_LEVEL = caveLevels.length; loadLevel(1); }
+    else if(w === 'hell'){ MAX_LEVEL = hellLevels.length; loadLevel(1); }
+    else { MAX_LEVEL = galaxyLevels.length; loadLevel(1); }
+  }
+
+  function loadLevel(n){
+    const idx = Math.max(1, Math.min(MAX_LEVEL, n)) - 1;
+    const data = (currentWorld === 'cave') ? caveLevels[idx] : (currentWorld === 'hell' ? hellLevels[idx] : galaxyLevels[idx]);
+    platforms = (data.platforms||[]).map(p => JSON.parse(JSON.stringify(p)));
+    enemies = (data.enemies||[]).map(e => JSON.parse(JSON.stringify(e)));
+    goal = Object.assign({}, data.goal);
+    levelCoins = (data.coins||[]).map(c => Object.assign({}, c));
+    currentLevel = n;
+    if(levelEl) levelEl.textContent = currentLevel;
+    player.x = 60; player.y = H - 150; player.vx = 0; player.vy = 0; player.onGround = false;
+    teleporting = false;
+  }
+
+  function nextLevel(){
+    if(currentLevel >= MAX_LEVEL){
+      if(currentWorld === 'cave'){ showHellChoice(); }
+      else if(currentWorld === 'hell'){ setWorld('galaxy'); score += 800; updateHUD(); }
+      else { finishAll(); }
+    } else {
+      loadLevel(currentLevel + 1);
+      score += (currentWorld === 'galaxy') ? 300 : 200;
+      updateHUD();
+    }
+  }
+
+  function resetGame(){
+    score = 0; coins = 0; lives = 10;
+    ownedSkins = { base: true, skeleton: false, alien: false };
+    activeSkin = 'base';
+    setWorld('cave'); updateHUD(); hideWinSequence(); hideVictory(); showStartOverlay(false); updateShopUI();
+  }
+
+  function updateHUD(){
+    if(scoreEl) scoreEl.textContent = Math.max(0, Math.floor(score));
+    if(levelEl) levelEl.textContent = currentLevel;
+    if(coinsEl) coinsEl.textContent = coins;
+    if(coinsInShopEl) coinsInShopEl.textContent = coins;
+    updateLivesDisplay();
+  }
+
+  function updateLivesDisplay(){
+    const hudLives = document.getElementById('lives');
+    if(!hudLives) return;
+    const maxIcons = 10;
+    if(lives <= maxIcons){
+      let html = '';
+      for(let i=0;i<lives;i++){ html += '<span class="heart">♥</span>'; }
+      hudLives.innerHTML = html;
+    } else {
+      hudLives.innerHTML = '<span class="heart">♥</span> x ' + lives;
+    }
+  }
+
+  // Tastatur
+  window.addEventListener('keydown', e=>{ keys[e.code]=true; if(e.code==='Space') e.preventDefault(); if(e.code==='Escape'){ toggleShop(false); }});
+  window.addEventListener('keyup', e=>{ keys[e.code]=false; });
+
+  // Touch fürs iPad
+  canvas.addEventListener('touchstart', handleTouch, {passive:false});
+  canvas.addEventListener('touchmove', handleTouch, {passive:false});
+  canvas.addEventListener('touchend', ()=>{ keys['ArrowLeft']=false; keys['ArrowRight']=false; }, {passive:false});
+  function handleTouch(e){
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches[0];
+    if(!t) return;
+    const x = t.clientX - rect.left;
+    const y = t.clientY - rect.top;
+    const w = rect.width, h = rect.height;
+    keys['ArrowLeft'] = (x < w*0.33);
+    keys['ArrowRight'] = (x > w*0.66);
+    if(y > h*0.7){
+      if(player.onGround){ keys['Space'] = true; setTimeout(()=>{ keys['Space']=false; }, 60); }
+    }
+  }
+
+  if(restartBtn) restartBtn.addEventListener('click', ()=>{ resetGame(); if(paused) togglePause(); });
+  if(restartAfterWinBtn) restartAfterWinBtn.addEventListener('click', ()=>{ resetGame(); hideWinSequence(); });
+  if(restartAfterVictoryBtn) restartAfterVictoryBtn.addEventListener('click', ()=>{ resetGame(); hideVictory(); });
+  if(togglePauseBtn) togglePauseBtn.addEventListener('click', togglePause);
+
+  function togglePause(){ paused = !paused; if(togglePauseBtn) togglePauseBtn.textContent = paused ? 'Weiter' : 'Pause'; lastTime = performance.now(); if(!paused) requestAnimationFrame(loop); }
+
+  function rectsOverlap(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+  function circleRectOverlap(cx, cy, r, rect){
+    const closestX = Math.max(rect.x, Math.min(cx, rect.x + rect.w));
+    const closestY = Math.max(rect.y, Math.min(cy, rect.y + rect.h));
+    const dx = cx - closestX;
+    const dy = cy - closestY;
+    return (dx*dx + dy*dy) <= r*r;
+  }
+
+  function updateEnemies(dt){
+    for(const en of enemies){
+      if(en.type === 'alien' && en.hover){
+        const aggression = (currentWorld === 'galaxy') ? 1.15 : 1.0;
+        en.x += en.vx * dt * (0.9 + Math.sin(performance.now()/600 + en.x)*0.2) * aggression;
+        en.y += Math.sin((performance.now()/650) + en.x*0.01) * 10 * dt * 40 * (currentWorld === 'galaxy' ? 1.05 : 1);
+      } else {
+        en.x += en.vx * dt;
+      }
+      let minX = 20, maxX = W - 20 - en.w;
+      for(const p of platforms){
+        if(Math.abs(en.y + en.h - p.y) < 6 && en.x + en.w/2 >= p.x && en.x + en.w/2 <= p.x + p.w){
+          minX = p.x + 4; maxX = p.x + p.w - 4 - en.w; break;
+        }
+      }
+      if(en.x < minX){ en.x = minX; en.vx *= -1; }
+      if(en.x > maxX){ en.x = maxX; en.vx *= -1; }
+    }
+  }
+
+  function updatePlatforms(dt){
+    for(const p of platforms){
+      if(p.moving){
+        if(p.moving.axis === 'x'){
+          p.x += p.moving.dir * p.moving.speed * dt;
+          const offset = p.x - (p.moving.origin || 0);
+          if(Math.abs(offset) > p.moving.range) p.moving.dir *= -1;
+        } else {
+          p.y += p.moving.dir * p.moving.speed * dt;
+          const offset = p.y - (p.moving.origin || 0);
+          if(Math.abs(offset) > p.moving.range) p.moving.dir *= -1;
+        }
+      }
+    }
+  }
+
+  let started = false;
+
+  function update(dt){
+    if(!started || teleporting) return;
+
+    if(player.invulnerable > 0) player.invulnerable = Math.max(0, player.invulnerable - dt);
+
+    const left = keys['ArrowLeft'] || keys['KeyA'];
+    const right = keys['ArrowRight'] || keys['KeyD'];
+    const jump = keys['Space'] || keys['ArrowUp'] || keys['KeyW'];
+    if(left) player.vx = -player.speed;
+    else if(right) player.vx = player.speed;
+    else player.vx = 0;
+    if(jump && player.onGround){ player.vy = -player.jumpForce; player.onGround = false; }
+
+    player.vy += gravity * dt;
+    player.x += player.vx * dt;
+    player.y += player.vy * dt;
+
+    if(player.x < 0){ player.x = 0; player.vx = Math.min(0, player.vx); }
+    if(player.x + player.w > W){ player.x = W - player.w; player.vx = Math.max(0, player.vx); }
+
+    updatePlatforms(dt);
+    player.onGround = false;
+    const playerBox = {x: player.x, y: player.y, w: player.w, h: player.h};
+
+    for(const p of platforms){
+      const platBox = {x: p.x, y: p.y, w: p.w, h: p.h};
+      if(rectsOverlap(playerBox, platBox)){
+        const overlapLeft = (playerBox.x + playerBox.w) - platBox.x;
+        const overlapRight = (platBox.x + platBox.w) - playerBox.x;
+        const overlapTop = (playerBox.y + playerBox.h) - platBox.y;
+        const overlapBottom = (platBox.y + platBox.h) - playerBox.y;
+        const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+        if(minOverlap === overlapTop){
+          if(player.vy >= 0){
+            player.y = platBox.y - player.h;
+            player.vy = 0;
+            player.onGround = true;
+            if(p.moving && p.moving.axis === 'x') player.x += p.moving.dir * p.moving.speed * dt;
+            if(p.boost){ player.vx *= 1.2; player.vy = -player.jumpForce*0.35; }
+          }
+        } else if(minOverlap === overlapBottom){
+          player.y = platBox.y + platBox.h + 0.1;
+          player.vy = Math.max(0, player.vy);
+        } else if(minOverlap === overlapLeft){
+          player.x = platBox.x - player.w - 0.1;
+          player.vx = Math.min(0, player.vx);
+        } else {
+          player.x = platBox.x + platBox.w + 0.1;
+          player.vx = Math.max(0, player.vx);
+        }
+      }
+    }
+
+    updateEnemies(dt);
+
+    // Gegner-Kollisionen
+    for(let i=enemies.length-1;i>=0;i--){
+      const en = enemies[i];
+      const enBox = {x: en.x, y: en.y, w: en.w, h: en.h};
+      if(rectsOverlap(playerBox, enBox) && player.invulnerable <= 0){
+        if(player.vy > 200 && (player.y + player.h - en.y) < 18){
+          enemies.splice(i,1);
+          player.vy = -player.jumpForce * 0.45;
+          score += 120;
+        } else {
+          lives -= 1; // jeder Treffer: 1 Leben
+          player.invulnerable = 1.2;
+          updateHUD();
+          if(lives <= 0){
+            setTimeout(()=>{ alert('Game Over — Du hast alle Leben verloren. Spiel wird neu gestartet.'); resetGame(); },50);
+          } else {
+            player.x = 60; player.y = H - 150; player.vx = 0; player.vy = 0; player.onGround = false;
+          }
+          break;
+        }
+      }
+    }
+
+    // Hazard-Kollisionen: Lava (Hölle) und Kristalle (Höhle) und weitere hazard
+    for(const p of platforms){
+      if(p.hazard || p.lava || p.crystal){
+        const hazardBox = {x: p.x, y: p.y, w: p.w, h: p.h};
+        if(rectsOverlap(playerBox, hazardBox)){
+          lives -= 1;
+          updateHUD();
+          if(lives <= 0){
+            setTimeout(()=>{ alert('Game Over — Du hast alle Leben verloren. Spiel wird neu gestartet.'); resetGame(); },50);
+          } else {
+            player.x = 60; player.y = H - 150; player.vx = 0; player.vy = 0; player.onGround = false;
+          }
+          return;
+        }
+      }
+    }
+
+    // Münzen aufsammeln
+    for(const c of levelCoins){
+      if(c.taken) continue;
+      if(circleRectOverlap(c.x, c.y, c.r, playerBox)){
+        c.taken = true;
+        coins += 1;
+        score += 10;
+        updateHUD();
+      }
+    }
+
+    // Ziel
+    if(goal){
+      const goalBox = {x: goal.x, y: goal.y, w: goal.w, h: goal.h};
+      if(rectsOverlap(playerBox, goalBox) && !teleporting){
+        startTeleportSequence();
+      }
+    }
+
+    // Punkte
+    score += dt * (currentWorld === 'galaxy' ? 12 : 18);
+    updateHUD();
+
+    // Fallen
+    if(player.y > H + 220){
+      lives -= 1;
+      updateHUD();
+      if(lives <= 0){
+        setTimeout(()=>{ alert('Game Over — Du hast alle Leben verloren. Spiel wird neu gestartet.'); resetGame(); },50);
+      } else {
+        player.x = 60; player.y = H - 150; player.vx = 0; player.vy = 0; player.onGround = false;
+      }
+    }
+  }
+
+  function startTeleportSequence(){
+    teleporting = true;
+    const startX = player.x, startY = player.y;
+    const targetX = goal.x + goal.w/2 - player.w/2;
+    const targetY = goal.y + goal.h/2 - player.h/2;
+    const duration = 800;
+    const startTime = performance.now();
+    function easeInOutQuad(t){ return t<0.5 ? 2*t*t : -1 + (4 - 2*t)*t; }
+    function anim(t){
+      const p = Math.min(1, (t - startTime)/duration);
+      const ease = easeInOutQuad(p);
+      player.x = startX + (targetX - startX) * ease;
+      player.y = startY + (targetY - startY) * ease - Math.sin(ease * Math.PI) * 40;
+      player.vx = 0; player.vy = 0;
+      render();
+      if(p < 1) requestAnimationFrame(anim);
+      else setTimeout(()=>{ teleporting = false; nextLevel(); }, 300);
+    }
+    requestAnimationFrame(anim);
+  }
+
+  function showHellChoice(){
+    if(podestEl) podestEl.style.display = 'block';
+    if(hellChoiceEl) hellChoiceEl.style.display = 'block';
+    if(enterHellBtn) enterHellBtn.onclick = ()=>{
+      setWorld('hell');
+      if(hellChoiceEl) hellChoiceEl.style.display='none';
+      if(podestEl) podestEl.style.display='none';
+      score += 500;
+      updateHUD();
+    };
+    if(declineHellBtn) declineHellBtn.onclick = ()=>{
+      if(hellChoiceEl) hellChoiceEl.style.display = 'none';
+      if(podestEl) podestEl.style.display = 'block';
+    };
+  }
+
+  function hideWinSequence(){ if(podestEl) podestEl.style.display='none'; if(hellChoiceEl) hellChoiceEl.style.display='none'; if(confettiContainer) confettiContainer.innerHTML=''; paused = false; }
+
+  function finishAll(){ if(podestEl) podestEl.style.display = 'block'; showVictory(); }
+  function showVictory(){ if(victoryOverlay) victoryOverlay.style.display = 'flex'; runConfetti(); }
+  function hideVictory(){ if(victoryOverlay) victoryOverlay.style.display = 'none'; if(confettiContainer) confettiContainer.innerHTML = ''; }
+
+  function runConfetti(){
+    if(!confettiContainer) return;
+    confettiContainer.innerHTML = '';
+    const pieces = [];
+    const colors = ['#9ad0ff','#ffd166','#c1b7ff','#7ef0ff','#ffd1f6','#ffb3a7','#a6ffb3'];
+    for(let i=0;i<140;i++){
+      const el = document.createElement('div');
+      el.style.position='absolute';
+      el.style.width=(6+Math.random()*10)+'px';
+      el.style.height=(8+Math.random()*12)+'px';
+      el.style.left=(20+Math.random()*(canvas.clientWidth-40))+'px';
+      el.style.top=(-50-Math.random()*400)+'px';
+      el.style.background = colors[Math.floor(Math.random()*colors.length)];
+      el.style.opacity='0.95';
+      el.style.transform='rotate('+Math.random()*360+'deg)';
+      confettiContainer.appendChild(el);
+      pieces.push({el, vx:(Math.random()-0.5)*160, vy:80+Math.random()*240, rot:Math.random()*360, drot:(Math.random()-0.5)*800});
+    }
+    let last = performance.now();
+    function anim(t){
+      const dt = Math.min(0.04,(t-last)/1000);
+      last = t;
+      for(const p of pieces){
+        let top = parseFloat(p.el.style.top||'0');
+        let left = parseFloat(p.el.style.left||'0');
+        top += p.vy * dt;
+        left += p.vx * dt;
+        p.rot += p.drot * dt;
+        p.el.style.top = top + 'px';
+        p.el.style.left = left + 'px';
+        p.el.style.transform = 'rotate('+p.rot+'deg)';
+        if(top > canvas.clientHeight + 120 && p.el.parentNode) p.el.parentNode.removeChild(p.el);
+      }
+      if(pieces.some(p => document.body.contains(p.el))) requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+  }
+
+  function hideStartOverlay(){ if(startOverlay) startOverlay.style.display = 'none'; }
+  function showStartOverlay(visible){ if(startOverlay) startOverlay.style.display = visible ? 'flex' : 'none'; }
+
+  function roundRect(ctx,x,y,w,h,r){ if(w<2*r) r=w/2; if(h<2*r) r=h/2; ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+  // Shop öffnen/schliessen + UI
+  function toggleShop(force){
+    const open = (force === true) ? true : (force === false ? false : (shopOverlay.style.display !== 'flex'));
+    shopOverlay.style.display = open ? 'flex' : 'none';
+    if(open){ paused = true; updateShopUI(); }
+    else { paused = false; lastTime = performance.now(); requestAnimationFrame(loop); }
+  }
+  function updateShopUI(){
+    coinsInShopEl.textContent = coins;
+    // Besitz anzeigen
+    ownedSkeleton.style.display = ownedSkins.skeleton ? 'inline-block' : 'none';
+    ownedAlien.style.display = ownedSkins.alien ? 'inline-block' : 'none';
+    // Button Zustände
+    buySkeletonBtn.disabled = ownedSkins.skeleton || coins < 100;
+    buyAlienBtn.disabled = ownedSkins.alien || coins < 500;
+    equipSkeletonBtn.disabled = !ownedSkins.skeleton || activeSkin === 'skeleton';
+    equipAlienBtn.disabled = !ownedSkins.alien || activeSkin === 'alien';
+  }
+
+  // Shop Events
+  openShopBtn.addEventListener('click', ()=> toggleShop(true));
+  closeShopBtn.addEventListener('click', ()=> toggleShop(false));
+  buySkeletonBtn.addEventListener('click', ()=>{
+    if(!ownedSkins.skeleton && coins >= 100){ coins -= 100; ownedSkins.skeleton = true; updateHUD(); updateShopUI(); }
+  });
+  buyAlienBtn.addEventListener('click', ()=>{
+    if(!ownedSkins.alien && coins >= 500){ coins -= 500; ownedSkins.alien = true; updateHUD(); updateShopUI(); }
+  });
+  equipSkeletonBtn.addEventListener('click', ()=>{
+    if(ownedSkins.skeleton){ activeSkin = 'skeleton'; updateShopUI(); }
+  });
+  equipAlienBtn.addEventListener('click', ()=>{
+    if(ownedSkins.alien){ activeSkin = 'alien'; updateShopUI(); }
+  });
+
+  // Render
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    // Hintergrund
+    if(currentWorld === 'cave'){
+      const bgGrad = ctx.createLinearGradient(0,0,0,H);
+      bgGrad.addColorStop(0,'#0b1320');
+      bgGrad.addColorStop(1,'#071027');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0,0,W,H);
+      // Kristallglitzern am Boden
+      for(let i=0;i<10;i++){
+        const gx = 50 + i*80;
+        const gy = H - 30;
+        const g = ctx.createRadialGradient(gx,gy,6,gx,gy,100);
+        g.addColorStop(0,'rgba(160,220,255,0.06)');
+        g.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(gx,gy,90,0,Math.PI*2);
+        ctx.fill();
+      }
+    } else if(currentWorld === 'hell'){
+      const bgGrad = ctx.createLinearGradient(0,0,0,H);
+      bgGrad.addColorStop(0,'#3a0505');
+      bgGrad.addColorStop(1,'#120000');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0,0,W,H);
+      const lavaGrad = ctx.createLinearGradient(0,H-140,0,H);
+      lavaGrad.addColorStop(0,'rgba(255,120,30,0.06)');
+      lavaGrad.addColorStop(1,'rgba(120,20,0,0.8)');
+      ctx.fillStyle = lavaGrad;
+      ctx.fillRect(0,H-160,W,160);
+    } else {
+      // Galaxy
+      ctx.fillStyle = '#000011';
+      ctx.fillRect(0,0,W,H);
+      for(let s=0;s<120;s++){
+        ctx.fillStyle = (s%11===0)?'#fff5':'#88bbff22';
+        const sx = (s*73 + Math.sin(performance.now()/500 + s)*13) % W;
+        const sy = (s*47 + Math.cos(performance.now()/700 + s)*21) % H;
+        ctx.fillRect(sx, sy, (s%13===0)?2:1, (s%13===0)?2:1);
+      }
+      const t = performance.now()/1000;
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      const px = 220 + Math.sin(t*0.14)*70;
+      const py = 120 + Math.cos(t*0.1)*36;
+      const grad = ctx.createRadialGradient(px,py,10,px,py,130);
+      grad.addColorStop(0,'#7ef0ff');
+      grad.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(px,py,80,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Plattformen
+    for(const p of platforms){
+      if(p.crystal){
+        const g = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
+        g.addColorStop(0,'#9ad0ff');
+        g.addColorStop(1,'#4e8fb8');
+        ctx.fillStyle = g;
+        roundRect(ctx,p.x,p.y,p.w,p.h,2);
+        ctx.fill();
+        // kleine Zacken
+        ctx.fillStyle = '#cfe9ff';
+        for(let i=0;i<Math.floor(p.w/16);i++){
+          const cx = p.x + 4 + i*16;
+          const h = 6 + (i%2)*3;
+          ctx.beginPath();
+          ctx.moveTo(cx, p.y + p.h);
+          ctx.lineTo(cx+6, p.y + p.h - h);
+          ctx.lineTo(cx+12, p.y + p.h);
+          ctx.closePath();
+          ctx.fill();
+        }
+        continue;
+      }
+      if(p.hazard || p.lava){
+        const lg = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
+        lg.addColorStop(0,'#ff9640');
+        lg.addColorStop(0.6,'#ff4d00');
+        lg.addColorStop(1,'#7b1200');
+        ctx.fillStyle = lg;
+        roundRect(ctx,p.x,p.y,p.w,p.h,6);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,200,120,0.12)';
+        ctx.fillRect(p.x + 4, p.y + 2, p.w - 8, 2);
+        continue;
+      }
+      if(currentWorld === 'cave'){
+        ctx.fillStyle = '#4b5a63';
+        roundRect(ctx,p.x,p.y,p.w,p.h,6);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.03)';
+        ctx.fillRect(p.x, p.y, p.w, 3);
+      } else if(currentWorld === 'hell'){
+        ctx.fillStyle = '#4a1515';
+        roundRect(ctx,p.x,p.y,p.w,p.h,6);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,120,60,0.06)';
+        ctx.fillRect(p.x, p.y, p.w, 3);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(p.x, p.y + p.h - 4, p.w, 4);
+      } else {
+        // Galaxy-Plattformen
+        ctx.save();
+        const g = ctx.createLinearGradient(p.x, p.y, p.x + p.w, p.y + p.h);
+        g.addColorStop(0,'#dfeefc');
+        g.addColorStop(1,'#9ad0ff');
+        ctx.fillStyle = g;
+        roundRect(ctx, p.x, p.y, p.w, p.h, 6);
+        ctx.fill();
+        ctx.globalAlpha = 0.38;
+        ctx.fillStyle = '#9ad0ff';
+        ctx.beginPath();
+        ctx.ellipse(p.x + Math.min(120,p.w+32), p.y + p.h/2, Math.min(80,p.w*0.9), p.h*1.4, Math.sin(performance.now()/300 + p.x)*0.2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+    }
+
+    // Ziel-Portal
+    if(goal){
+      const gx = goal.x + goal.w/2, gy = goal.y + goal.h/2;
+      ctx.save();
+      if(currentWorld === 'galaxy'){
+        const glow = ctx.createRadialGradient(gx,gy,8,gx,gy,180);
+        glow.addColorStop(0,'rgba(160,220,255,0.7)');
+        glow.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(gx,gy,120,0,Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(200,255,255,0.95)';
+        ctx.arc(gx,gy,34,0,Math.PI*2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(200,255,255,0.06)';
+        roundRect(ctx, goal.x - 8, goal.y - 8, goal.w + 16, goal.h + 16, 12);
+        ctx.fill();
+      } else {
+        const glow = ctx.createRadialGradient(gx,gy,8,gx,gy,120);
+        glow.addColorStop(0,'rgba(255,220,80,0.45)');
+        glow.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(gx,gy,110,0,Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(255,200,60,0.9)';
+        ctx.arc(gx,gy,28,0,Math.PI*2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,200,60,0.12)';
+        roundRect(ctx, goal.x - 6, goal.y - 6, goal.w + 12, goal.h + 12, 10);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Münzen zeichnen
+    for(const c of levelCoins){
+      if(c.taken) continue;
+      const pulse = 0.9 + 0.2*Math.sin(performance.now()/300 + c.pulse);
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.scale(pulse, pulse);
+      // Münze (gelb)
+      const grad = ctx.createLinearGradient(-c.r, -c.r, c.r, c.r);
+      grad.addColorStop(0, '#ffe37a');
+      grad.addColorStop(1, '#e7b21a');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0,0,c.r,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#fff2';
+      ctx.fillRect(-c.r*0.6, -c.r*0.5, c.r*1.2, c.r*0.15);
+      ctx.restore();
+    }
+
+    // Gegner
+    for(const en of enemies){
+      if(en.type === 'fire'){
+        ctx.save();
+        const cx = en.x + en.w/2, cy = en.y + en.h/2;
+        const glow = ctx.createRadialGradient(cx,cy,2,cx,cy,48);
+        glow.addColorStop(0,'rgba(255,180,60,0.95)');
+        glow.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(cx,cy,34,0,Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#ff8243';
+        roundRect(ctx,en.x,en.y,en.w,en.h,6);
+        ctx.fill();
+        ctx.restore();
+      } else if(en.type === 'bat'){
+        ctx.fillStyle = '#cfcfcf';
+        roundRect(ctx,en.x,en.y,en.w,en.h,4);
+        ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.fillRect(en.x + 6, en.y + 4, 4, 4);
+      } else if(en.type === 'alien'){
+        ctx.save();
+        const cx = en.x + en.w/2, cy = en.y + en.h/2;
+        const g = ctx.createRadialGradient(cx,cy,2,cx,cy,48);
+        g.addColorStop(0,'#b7ffb7');
+        g.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx,cy,32,0,Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#7ef07e';
+        roundRect(ctx, en.x, en.y, en.w, en.h, 8);
+        ctx.fill();
+        ctx.fillStyle = '#123';
+        ctx.fillRect(en.x + 8, en.y + 8, 6, 6);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#ff6b6b';
+        roundRect(ctx,en.x,en.y,en.w,en.h,4);
+        ctx.fill();
+      }
+    }
+
+    // Spieler mit Skin
+    drawPlayerWithSkin(ctx, player.x, player.y, player.w, player.h, activeSkin, player.invulnerable);
+    // kleine Boden-Schatten
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillRect(player.x + 6, player.y + player.h - 6, player.w - 12, 4);
+  }
+
+  function drawPlayerWithSkin(ctx, x, y, w, h, skin, invul){
+    const blink = invul > 0 && Math.floor(performance.now()/100) % 2 === 0;
+    if(blink) return; // blinken: manchmal unsichtbar
+    if(skin === 'skeleton'){
+      // Skelett: Kopf hell, Knochenlinien
+      ctx.fillStyle = '#e6e6e6'; roundRect(ctx, x, y, w, h, 6); ctx.fill();
+      ctx.fillStyle = '#f5f5f5'; roundRect(ctx, x-4, y-12, w+8, 18, 6); ctx.fill();
+      ctx.fillStyle = '#444'; ctx.fillRect(x + 8, y - 6, 6, 6); ctx.fillRect(x + w - 14, y - 6, 6, 6);
+      ctx.fillStyle = '#d0d0d0'; ctx.fillRect(x + 6, y + 10, w - 12, 3); ctx.fillRect(x + 8, y + 18, w - 16, 3); ctx.fillRect(x + 10, y + 26, w - 20, 3);
+    } else if(skin === 'alien'){
+      // Alien: grün, runder Kopf
+      ctx.fillStyle = '#7ef07e'; roundRect(ctx, x, y, w, h, 8); ctx.fill();
+      ctx.fillStyle = '#b7ffb7'; roundRect(ctx, x-2, y-12, w+4, 18, 10); ctx.fill();
+      ctx.fillStyle = '#123'; ctx.fillRect(x + 8, y - 6, 6, 6); ctx.fillRect(x + w - 14, y - 6, 6, 6);
+    } else {
+      // Basis
+      ctx.fillStyle = '#ffd166'; roundRect(ctx, x, y, w, h, 6); ctx.fill();
+      ctx.fillStyle = '#222'; ctx.fillRect(x + 8, y + 12, 6, 6); ctx.fillRect(x + w - 14, y + 12, 6, 6);
+    }
+  }
+
+  function loop(timestamp){
+    const dt = Math.min(0.033, (timestamp - lastTime) / 1000 || 0);
+    lastTime = timestamp;
+    if(!paused){ update(dt); render(); requestAnimationFrame(loop); }
+  }
+
+  // Hell-Einstieg Buttons
+  if(enterHellBtn) enterHellBtn.addEventListener('click', ()=>{
+    setWorld('hell');
+    if(hellChoiceEl) hellChoiceEl.style.display='none';
+    if(podestEl) podestEl.style.display='none';
+    score += 500;
+    updateHUD();
+  });
+
+  if(declineHellBtn) declineHellBtn.addEventListener('click', ()=>{
+    if(hellChoiceEl) hellChoiceEl.style.display='none';
+    if(podestEl) podestEl.style.display='block';
+  });
+
+  if(startButton){
+    startButton.addEventListener('click', ()=>{
+      started = true;
+      if(startOverlay) startOverlay.style.display = 'none';
+      lastTime = performance.now();
+      requestAnimationFrame(loop);
+    });
+  }
+
+  setWorld('cave');
+  updateHUD();
+  showStartOverlay(true);
+  lastTime = performance.now();
+  requestAnimationFrame(function renderOnce(){ render(); });
+})();
+});
+</script>
+</body>
+</html>
+

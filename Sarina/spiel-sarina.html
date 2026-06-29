@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Schulflur – Längere Level + Sprint-Fix L9</title>
+<style>
+:root{
+  --bg:#f5f7fb;
+  --wall-top:#f9fbff;
+  --wall-bottom:#eef4fb;
+  --floor:#e9eef6;
+  --floor-grad1:#e8f3ff;
+  --floor-grad2:#e9eef6;
+
+  --player-skin:#ffe3c4;
+  --podest:#c8f5d6;
+  --podest-top:#e4fbef;
+  --coin:#f7d87b;
+  --coin-edge:#e8be34;
+  --checkpoint:#9ae6b4;
+  --door:#7ad7cf;
+  --door-frame:#4aa5a0;
+
+  --teacher-body:#d8dff0;
+  --teacher-shirt:#ffdfe9;
+
+  --ui:#0f172a;
+  --ui2:#334155;
+  --panel:#ffffff;
+  --border:#cbd5e1;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ui);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;touch-action:none}
+#game{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+header{
+  background:linear-gradient(#ffffff,#f1f5f9);
+  border-bottom:1px solid var(--border);
+  padding:8px 12px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+header .title{font-weight:700}
+header .group{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+header button, header select{
+  padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--ui);cursor:pointer;
+}
+header .pill{background:#f1f5f9;border:1px solid var(--border);border-radius:999px;padding:4px 10px;font-size:14px}
+#hud{display:flex;gap:12px;margin-left:auto;align-items:center;flex-wrap:wrap}
+#hud .stat{padding:4px 10px;background:#fff;border:1px solid var(--border);border-radius:8px;font-weight:600}
+
+#wrap{position:relative;flex:1;overflow:hidden;background:var(--floor);border-top:1px solid var(--border);}
+canvas{position:absolute;left:0;top:0;width:100%;height:100%}
+
+/* Touch-Steuerung */
+#touch{position:absolute;inset:0;pointer-events:none;}
+.btn{
+  position:absolute;bottom:18px;width:70px;height:70px;border-radius:50%;
+  background:#ffffffcc;border:1px solid var(--border);box-shadow:0 2px 6px #0000001a;
+  display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--ui2);
+  pointer-events:auto;user-select:none;
+}
+.btn:active{transform:scale(0.96)}
+.btn.left{left:18px}
+.btn.right{left:98px}
+.btn.jump{right:98px}
+.btn.sprint{right:18px;background:#e6fbeec9;border-color:#86efac;color:#166534}
+
+/* Modals */
+.modal{position:absolute;inset:0;background:rgba(15,23,42,0.45);display:none;align-items:center;justify-content:center;padding:20px;}
+.card{
+  background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;max-width:960px;width:100%;
+  max-height:90vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,0.12);
+  -webkit-overflow-scrolling:touch;
+}
+.card h3{margin:0 0 8px}
+.small{font-size:12px;color:#64748b}
+hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+
+/* Level-Auswahl */
+#levelModal .levels{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:10px;
+}
+.levelBtn{
+  border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff;cursor:pointer;text-align:center;
+}
+.levelBtn.locked{opacity:0.5;cursor:not-allowed}
+.levelBtn .name{font-weight:700;margin-bottom:4px}
+.levelBtn .status{font-size:12px;color:#475569}
+
+/* Shop */
+.shop-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:8px;
+}
+.skin{
+  border:1px solid var(--border);border-radius:10px;padding:8px;background:#ffffff;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.skin .preview{width:46px;height:46px;border-radius:8px;border:1px solid var(--border);}
+.skin .name{font-weight:600}
+.skin .price{font-size:12px;color:#475569}
+.skin button{padding:6px 8px;border:1px solid var(--border);background:#f8fafc;border-radius:8px;cursor:pointer}
+.skin.owned .price{color:#16a34a}
+.skin.active{outline:2px solid #60a5fa}
+</style>
+</head>
+<body>
+<div id="game">
+  <header>
+    <div class="title">Schulflur – 10 Level, Shop & Skins</div>
+    <div class="group">
+      <button id="menuBtnTop">Menü</button>
+      <button id="startBtn">Start Level</button>
+      <button id="shopBtn">Shop</button>
+      <span class="pill small">Steuerung: ← → laufen, ↑ springen, S sprinten, ⎋ Pause</span>
+    </div>
+    <div id="hud">
+      <div class="stat">Level: <span id="lvl">1</span>/10</div>
+      <div class="stat">Münzen: <span id="coins">0</span></div>
+      <div class="stat">Checkpoint: <span id="check">–</span></div>
+      <div class="stat">Sprint: <span id="sprintInfo">bereit</span></div>
+    </div>
+  </header>
+
+  <div id="wrap">
+    <canvas id="bg"></canvas>
+    <canvas id="world"></canvas>
+
+    <div id="touch">
+      <div class="btn left" data-act="left">←</div>
+      <div class="btn right" data-act="right">→</div>
+      <div class="btn jump" data-act="jump">↑</div>
+      <div class="btn sprint" data-act="sprint" id="sprintBtn">S</div>
+    </div>
+
+    <!-- Pause/Win -->
+    <div id="modal" class="modal">
+      <div class="card" id="modalCard">
+        <h3 id="modalTitle">Pause</h3>
+        <p id="modalText">Tippe auf „Weiter“, um fortzufahren.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button id="resumeBtn">Weiter</button>
+          <button id="restartBtn">Neu starten</button>
+          <button id="openLevelBtn">Level-Auswahl</button>
+          <button id="openShopBtn2">Shop öffnen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Level-Auswahl -->
+    <div id="levelModal" class="modal">
+      <div class="card">
+        <h3>Level auswählen</h3>
+        <p class="small">Level werden nacheinander freigeschaltet. Beende ein Level, um das nächste freizuschalten.</p>
+        <div id="levelsGrid" class="levels"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button id="closeLevelBtn">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shop -->
+    <div id="shopModal" class="modal">
+      <div class="card">
+        <h3>Shop – Pastell‑Skins</h3>
+        <p>Sortiert: günstig → teuer.</p>
+        <div id="shopGrid" class="shop-grid"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button id="closeShopBtn">Schließen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+/* Canvas Setup */
+const bg = document.getElementById('bg');
+const world = document.getElementById('world');
+const wrap = document.getElementById('wrap');
+const ctxB = bg.getContext('2d');
+const ctx = world.getContext('2d');
+let W=0,H=0;
+
+function resize(){
+  W = wrap.clientWidth;
+  H = wrap.clientHeight;
+  const dpr = Math.min(window.devicePixelRatio||1,2);
+  [bg,world].forEach(c=>{
+    c.width = Math.floor(W*dpr);
+    c.height = Math.floor(H*dpr);
+    c.style.width = W+'px';
+    c.style.height = H+'px';
+    c.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+  });
+  drawBackground();
+}
+window.addEventListener('resize', resize, {passive:true});
+function getVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+/* UI Elemente */
+const coinsEl = document.getElementById('coins');
+const checkEl = document.getElementById('check');
+const sprintInfoEl = document.getElementById('sprintInfo');
+const lvlEl = document.getElementById('lvl');
+
+const startBtn = document.getElementById('startBtn');
+const shopBtn = document.getElementById('shopBtn');
+const menuBtnTop = document.getElementById('menuBtnTop');
+
+const modal = document.getElementById('modal');
+const modalTitle = document.getElementById('modalTitle');
+const modalText = document.getElementById('modalText');
+const resumeBtn = document.getElementById('resumeBtn');
+const restartBtn = document.getElementById('restartBtn');
+const openLevelBtn = document.getElementById('openLevelBtn');
+const openShopBtn2 = document.getElementById('openShopBtn2');
+
+const levelModal = document.getElementById('levelModal');
+const levelsGrid = document.getElementById('levelsGrid');
+const closeLevelBtn = document.getElementById('closeLevelBtn');
+
+const shopModal = document.getElementById('shopModal');
+const shopGrid = document.getElementById('shopGrid');
+const closeShopBtn = document.getElementById('closeShopBtn');
+
+const touch = document.getElementById('touch');
+const touchBtns = Array.from(touch.querySelectorAll('.btn'));
+
+/* Helpers */
+function roundRect(c,x,y,w,h,r,fill,stroke){
+  c.beginPath();
+  c.moveTo(x+r,y);
+  c.arcTo(x+w,y,x+w,y+h,r);
+  c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r);
+  c.arcTo(x,y,x+w,y,r);
+  c.closePath();
+  if(fill) c.fill();
+  if(stroke) c.stroke();
+}
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+/* Hintergrund */
+function drawBackground(){
+  ctxB.clearRect(0,0,W,H);
+  const wallGrad = ctxB.createLinearGradient(0,0,0,H*0.6);
+  wallGrad.addColorStop(0, getVar('--wall-top'));
+  wallGrad.addColorStop(1, getVar('--wall-bottom'));
+  ctxB.fillStyle = wallGrad;
+  ctxB.fillRect(0,0,W,H*0.6);
+
+  const floorGrad = ctxB.createLinearGradient(0,H*0.6,0,H);
+  floorGrad.addColorStop(0, getVar('--floor-grad1'));
+  floorGrad.addColorStop(1, getVar('--floor-grad2'));
+  ctxB.fillStyle = floorGrad;
+  ctxB.fillRect(0,H*0.6,W,H);
+  ctxB.fillStyle = '#d7deea';
+  ctxB.fillRect(0,H*0.6-2,W,2);
+
+  // Spinde
+  const lockerH = Math.min(160, H*0.36);
+  const lockerY = H*0.6 - lockerH;
+  const lockerW = 80;
+  const gap = 16;
+  const total = Math.ceil(W/(lockerW+gap))+2;
+  const colors = ['#cfe2ff','#e8d8ff','#ffe6d1'];
+  for(let i=0;i<total;i++){
+    const x = 12 + i*(lockerW+gap);
+    ctxB.fillStyle = colors[i%colors.length];
+    roundRect(ctxB, x, lockerY, lockerW, lockerH, 8, true, false);
+    ctxB.fillStyle = '#f7fbff';
+    roundRect(ctxB, x+6, lockerY+6, lockerW-12, lockerH-12, 6, true, false);
+    ctxB.fillStyle = 'rgba(0,0,0,0.06)';
+    roundRect(ctxB, x+6, lockerY+6, lockerW-12, lockerH-12, 6, true, false);
+  }
+}
+
+/* Spielzustand */
+const G = {
+  running:false,
+  t:0,
+  scroll:0,
+  gravity:2000,
+  friction:0.92, // Speed stabil
+  coins:0,
+  sprint:{active:false,timer:0,cooldown:0,duration:2.2,power:1.6,cooldownMax:5.0},
+  msgTimer:0,
+  currentLevel:2,
+  maxUnlocked:2,
+  invulnTimer:0
+};
+
+const player = {
+  x:160, y:0, w:28, h:46,
+  vx:0, vy:0,
+  onGround:false,
+  lastCheckpoint:{x:160,y:0,label:'Start'},
+  colors:{ shirt:'#a9c8ff', pants:'#6e95e6' }
+};
+
+/* Speichern (localStorage) */
+function saveProgress(){
+  try{
+    localStorage.setItem('schoolGameProgress', JSON.stringify({
+      maxUnlocked:G.maxUnlocked,
+      coins:G.coins,
+      activeSkinIndex
+    }));
+  }catch(e){}
+}
+function loadProgress(){
+  try{
+    const d = JSON.parse(localStorage.getItem('schoolGameProgress')||'{}');
+    if(d && typeof d.maxUnlocked==='number'){
+      G.maxUnlocked = Math.max(1, Math.min(10, d.maxUnlocked));
+    }
+    if(typeof d.coins==='number') G.coins = d.coins;
+    if(typeof d.activeSkinIndex==='number' && d.activeSkinIndex>=0){
+      activeSkinIndex = d.activeSkinIndex;
+      if(pastelSkins[activeSkinIndex]){
+        pastelSkins[activeSkinIndex].owned = true;
+        player.colors.shirt = pastelSkins[activeSkinIndex].shirt;
+        player.colors.pants = pastelSkins[activeSkinIndex].pants;
+      }
+    }
+  }catch(e){}
+}
+
+/* Weltobjekte */
+let objs = [];
+let door = null;
+
+/* Objekterzeuger */
+function makePlatform(x,y,w,h=14,tag=null){ return {type:'platform', x,y,w,h, tag}; }
+function makeGround(length){ return makePlatform(0, H*0.6-8, length, 16, 'ground'); }
+function makeCoin(x,y){ return {type:'coin', x,y,r:10, taken:false}; }
+function makeCheckpoint(x,label){ return {type:'checkpoint', x:x, y:H*0.6-50, w:18, h:46, label}; }
+function makeDoor(x){ return {type:'door', x:x, y:H*0.6-90, w:60, h:90}; }
+function makeTeacher(x,y, patrol=200, speed=60){
+  return {type:'teacher', x,y,w:30,h:58, msg:'Bitte zurück zum letzten Punkt, danke!', 
+          patrol, speed, dir:1, startX:x, minX:x - patrol/2, maxX:x + patrol/2};
+}
+
+/* Level-Generatoren – länger */
+function buildLevel(n){
+  const length = 5200;
+  const list = [];
+  list.push(makeGround(length));
+
+  const podY = H*0.6-80;
+  const pod = makePlatform(40, podY, 400, 18, 'start');
+  list.push(pod);
+
+  // Erste Rampe / Plattform
+  let rampDrop = (n===1)?40:(n%2===0?30:20);
+  if(n===2){ rampDrop += 20; }
+  list.push(makePlatform(pod.x + pod.w + 40, podY + rampDrop, 260, 14, 'helper'));
+
+  // Basis-Parameter je Level
+  let baseY = H*0.6 - (60 + ((n%3)*5));
+  const shift = (n-1) * 70; // größerer Shift
+
+  // Spezielle Deltas
+  let block1Delta = (n===2) ? 20 : 0;
+  let block2Delta = (n===2) ? 20 : 0;
+
+  function addBlock(x, y, w, step, count, gap=140){
+    let px = x;
+    for(let i=0;i<count;i++){
+      const p = makePlatform(px, y + (i%2===0?0:-step), w);
+      list.push(p);
+      // Coins
+      for(let j=0;j<Math.floor(w/60);j++){
+        list.push(makeCoin(p.x+20+j*60, p.y-28));
+      }
+      px += w + gap;
+    }
+    return px;
+  }
+
+  // Zonen – mehr Segmente
+  let x1 = addBlock(800+shift, baseY + block1Delta, 230, 20+(n*2), 3 + (n%2), 150);
+  let x2 = addBlock(1600+shift, (baseY-10) + block2Delta, 240, 26+(n*2), 3 + (n%3===0?1:0), 160);
+  let x3 = addBlock(2450+shift, baseY-20, 250, 16+(n), 4, 170);
+
+  // Zusatz-Zone
+  let x4Start = Math.max(x3, 3200+shift);
+  addBlock(x4Start, baseY-6, 260, 18+(n), 3, 180);
+
+  // Checkpoints – weiter auseinander
+  const cp1X = 1000+shift;
+  const cp2X = 2100+shift;
+  const cp3X = Math.max(3000+shift, x3-180);
+  list.push(makeCheckpoint(cp1X,'CP1'));
+  list.push(makeCheckpoint(cp2X,'CP2'));
+  list.push(makeCheckpoint(cp3X,'CP3'));
+
+  // Lehrer – verteilt
+  let t1 = {x:cp1X-120, y:H*0.6-58};
+  let t2 = {x:(cp1X+cp2X)/2, y:H*0.6-58};
+  let t3 = {x:cp3X+240, y:H*0.6-58};
+  list.push(makeTeacher(t1.x, t1.y, 200, 60));
+  list.push(makeTeacher(t2.x, t2.y, 200, 60));
+  list.push(makeTeacher(t3.x, t3.y, 200, 60));
+
+  // Ziel
+  door = makeDoor(length - 120);
+  list.push(door);
+
+  return list;
+}
+
+/* Steuerung */
+const keys = {left:false,right:false,up:false};
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='ArrowLeft'){ keys.left=true; e.preventDefault(); }
+  if(e.key==='ArrowRight'){ keys.right=true; e.preventDefault(); }
+  if(e.key==='ArrowUp'){ keys.up=true; doJump(); e.preventDefault(); }
+  if(e.key==='s' || e.key==='S'){ tryStartSprint(); e.preventDefault(); }
+  if(e.key==='Escape'){ togglePause(); e.preventDefault(); }
+},{passive:false});
+document.addEventListener('keyup', (e)=>{
+  if(e.key==='ArrowLeft'){ keys.left=false; }
+  if(e.key==='ArrowRight'){ keys.right=false; }
+  if(e.key==='ArrowUp'){ keys.up=false; }
+});
+
+/* Touch */
+touchBtns.forEach(btn=>{
+  const act = btn.getAttribute('data-act');
+  const on = ()=>{
+    if(act==='left') keys.left=true;
+    if(act==='right') keys.right=true;
+    if(act==='jump') doJump();
+    if(act==='sprint') tryStartSprint();
+  };
+  const off = ()=>{
+    if(act==='left') keys.left=false;
+    if(act==='right') keys.right=false;
+  };
+  btn.addEventListener('touchstart', (e)=>{e.preventDefault(); on();}, {passive:false});
+  btn.addEventListener('touchend', (e)=>{e.preventDefault(); off();}, {passive:false});
+  btn.addEventListener('mousedown', (e)=>{e.preventDefault(); on();});
+  btn.addEventListener('mouseup', (e)=>{e.preventDefault(); off();});
+  btn.addEventListener('mouseleave', off);
+});
+
+/* Sprint */
+function tryStartSprint(){
+  if(G.sprint.cooldown>0 || G.sprint.active) return;
+  G.sprint.active = true;
+  G.sprint.timer = G.sprint.duration;
+  sprintInfoEl.textContent = 'aktiv';
+}
+function updateSprint(dt){
+  if(G.sprint.active){
+    G.sprint.timer -= dt;
+    if(G.sprint.timer<=0){
+      G.sprint.active=false;
+      G.sprint.timer=0;
+      sprintInfoEl.textContent='Cooldown';
+      G.sprint.cooldown=G.sprint.cooldownMax;
+    }
+  } else if(G.sprint.cooldown>0){
+    G.sprint.cooldown -= dt;
+    sprintInfoEl.textContent = (G.sprint.cooldown>0) ? G.sprint.cooldown.toFixed(1)+'s' : 'bereit';
+  } else {
+    sprintInfoEl.textContent='bereit';
+  }
+}
+
+/* Shop – Pastell-Skins */
+const pastelSkins = (()=> {
+  const colors = [
+    {name:'Mint', shirt:'#bdf4d3', pants:'#7ad3a1'},
+    {name:'Rosa', shirt:'#ffd8e5', pants:'#f4a8c1'},
+    {name:'Himmelblau', shirt:'#cfe9ff', pants:'#9ac8f2'},
+    {name:'Flieder', shirt:'#e3d4ff', pants:'#c4b2f2'},
+    {name:'Pfirsich', shirt:'#ffd9b3', pants:'#f5b98a'},
+    {name:'Zitronencreme', shirt:'#fff3b0', pants:'#e7d985'},
+    {name:'Salbei', shirt:'#d7f0e2', pants:'#a6d0bb'},
+    {name:'Lavendel', shirt:'#e8e1ff', pants:'#c9c2f2'},
+    {name:'Eisblau', shirt:'#e1f3ff', pants:'#b9def2'},
+    {name:'Pastellgrün', shirt:'#cfeec9', pants:'#9fd3a8'},
+    {name:'Koralle hell', shirt:'#ffd5cc', pants:'#f2a79b'},
+    {name:'Vanille', shirt:'#fff0cc', pants:'#e8d39f'},
+    {name:'Taubenblau', shirt:'#d7e2f0', pants:'#aac1d9'},
+    {name:'Aprikose', shirt:'#ffe0b5', pants:'#f4be8f'},
+    {name:'Wassergrün', shirt:'#c9fff2', pants:'#9fe6d8'},
+    {name:'Puderrosa', shirt:'#ffe3ef', pants:'#f7b9cf'},
+    {name:'Mauve', shirt:'#efd5e6', pants:'#d6b4cb'},
+    {name:'Hellmint', shirt:'#d6ffe8', pants:'#aee8c7'},
+    {name:'Sand', shirt:'#f6ead4', pants:'#dfcfb4'},
+    {name:'Perlblau', shirt:'#e0eaff', pants:'#b7c7f2'}
+  ];
+  return colors.map(c=>({ ...c, price: randInt(3,100), owned:false }));
+})();
+let activeSkinIndex = -1;
+
+/* Level-Menü */
+function openLevelMenu(){ buildLevelMenu(); levelModal.style.display='flex'; }
+function closeLevelMenu(){ levelModal.style.display='none'; }
+function buildLevelMenu(){
+  levelsGrid.innerHTML='';
+  for(let i=1;i<=10;i++){
+    const btn = document.createElement('div');
+    btn.className = 'levelBtn' + (i>G.maxUnlocked ? ' locked' : '');
+    const name = document.createElement('div');
+    name.className='name';
+    name.textContent='Level '+i;
+    const status = document.createElement('div');
+    status.className='status';
+    if(i>G.maxUnlocked){
+      status.textContent='[gesperrt]';
+    } else if(i===G.maxUnlocked){
+      status.textContent='[neu/frei]';
+    } else {
+      status.textContent='[geschafft]';
+    }
+    btn.appendChild(name); btn.appendChild(status);
+    if(i<=G.maxUnlocked){
+      btn.addEventListener('click', ()=>{
+        closeLevelMenu();
+        G.currentLevel = i;
+        lvlEl.textContent = String(G.currentLevel);
+        startGame();
+      });
+    }
+    levelsGrid.appendChild(btn);
+  }
+}
+
+/* Physik/Loop */
+let lastTime = 0;
+function loop(now){
+  if(!G.running) return;
+  const dt = Math.min(1/60, (now - lastTime)/1000);
+  lastTime = now;
+  G.t += dt;
+
+  updateSprint(dt);
+
+  // Schutzzeit nach Respawn herunterzählen
+  if(G.invulnTimer > 0){
+    G.invulnTimer -= dt;
+    if(G.invulnTimer < 0) G.invulnTimer = 0;
+  }
+
+  // Eingaben – Sprint verstärkt nur die aktuelle Richtung
+  let accelBase = 980;
+  let accelBoost = (G.sprint.active ? G.sprint.power : 1);
+  let accel = accelBase * accelBoost;
+
+  if(keys.left && !keys.right){
+    player.vx -= accel*dt;
+  } else if(keys.right && !keys.left){
+    player.vx += accel*dt;
+  }
+  // Wenn beide oder keiner gedrückt: keine Richtungsänderung
+
+  // Reibung + Schwerkraft
+  player.vx *= G.friction;
+  player.vy += G.gravity*dt;
+
+  // Vertikal
+  player.y += player.vy*dt;
+  player.onGround=false;
+
+  for(const o of objs){
+    if(o.type!=='platform') continue;
+    if(aabb(player,o)){
+      const fromTop = (player.y+player.h) - o.y;
+      const fromBottom = (o.y+o.h) - player.y;
+      if(player.vy>0 && fromTop >= 0 && fromTop < 28){
+        player.y = o.y - player.h + 0.1;
+        player.vy = 0;
+        player.onGround = true;
+      } else if(player.vy<0 && fromBottom >= 0 && fromBottom < 16){
+        player.y = o.y + o.h + 0.1;
+        player.vy = 0;
+      }
+    }
+  }
+
+  // „Boden“-Sicherheitsnetz
+  const floorY = H*0.6-8;
+  if(player.y + player.h > floorY){
+    player.y = floorY - player.h + 0.1;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  // Horizontal
+  player.x += player.vx*dt;
+
+  for(const o of objs){
+    if(o.type!=='platform') continue;
+    if(aabb(player,o)){
+      const fromLeft = (player.x + player.w) - o.x;
+      const fromRight = (o.x + o.w) - player.x;
+      if(player.vx>0 && fromLeft >= 0 && fromLeft < 24){
+        player.x = o.x - player.w;
+        player.vx = 0;
+      } else if(player.vx<0 && fromRight >= 0 && fromRight < 24){
+        player.x = o.x + o.w;
+        player.vx = 0;
+      }
+    }
+  }
+
+  // Lehrer-Patrouille aktualisieren
+  for(const o of objs){
+    if(o.type==='teacher'){
+      o.x += o.dir * o.speed * dt;
+      if(o.x < o.minX){ o.x = o.minX; o.dir = 1; }
+      if(o.x > o.maxX){ o.x = o.maxX; o.dir = -1; }
+    }
+  }
+
+  // Lehrer: freundlich zurück – aber nicht während Schutzzeit
+  if(G.invulnTimer <= 0){
+    for(const o of objs){
+      if(o.type==='teacher' && aabbInflate(player,o,0)){
+        G.msgTimer = 1.5;
+        resetToCheckpoint();
+        break;
+      }
+    }
+  }
+
+  // Checkpoints
+  for(const o of objs){
+    if(o.type==='checkpoint' && aabbInflate(player,o,2)){
+      player.lastCheckpoint = {x:o.x+10,y:o.y-2,label:o.label};
+      checkEl.textContent = o.label;
+    }
+  }
+
+  // Tür -> Ziel
+  if(door && aabbInflate(player,door,-4)){
+    G.running = false;
+    modalTitle.textContent = 'Level '+G.currentLevel+' geschafft!';
+    modalText.textContent = 'Klasse! Das nächste Level wurde freigeschaltet.';
+    openModal();
+    if(G.currentLevel === G.maxUnlocked && G.maxUnlocked < 10){
+      G.maxUnlocked += 1;
+      saveProgress();
+    }
+    return;
+  }
+
+  // Kamera folgt
+  const camTarget = player.x - wrap.clientWidth*0.35;
+  G.scroll += (camTarget - G.scroll)*0.15;
+
+  // Render
+  drawBackground();
+  drawWorld(dt);
+
+  requestAnimationFrame(loop);
+}
+
+/* Geometrie/Kollision */
+function aabb(a,b){
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+function aabbInflate(a,b,pad){
+  return a.x < b.x + b.w + pad && a.x + a.w > b.x - pad && a.y < b.y + b.h + pad && a.y + a.h > b.y - pad;
+}
+function circleRect(cx,cy,r, rx,ry,rw,rh){
+  const closestX = Math.max(rx, Math.min(cx, rx+rw));
+  const closestY = Math.max(ry, Math.min(cy, ry+rh));
+  const dx = cx-closestX, dy=cy-closestY;
+  return (dx*dx+dy*dy) < r*r;
+}
+
+/* Zeichnen */
+function drawWorld(dt){
+  ctx.clearRect(0,0,W,H);
+  const ox = -G.scroll;
+
+  // Bodenlinie – länger
+  ctx.fillStyle = '#c7cfdb';
+  ctx.fillRect(ox, H*0.6-8, Math.max(W, 7200), 2);
+
+  // Plattformen
+  for(const o of objs){
+    if(o.type==='platform'){
+      if(o.tag==='start'){
+        ctx.fillStyle = getVar('--podest');
+        roundRect(ctx, o.x+ox, o.y, o.w, o.h, 6, true, false);
+        ctx.fillStyle = getVar('--podest-top');
+        ctx.fillRect(o.x+ox, o.y, o.w, 6);
+      } else if(o.tag==='ground'){
+        ctx.fillStyle = '#cfd8e3';
+        roundRect(ctx, o.x+ox, o.y, o.w, o.h, 4, true, false);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(o.x+ox, o.y, o.w, 6);
+      } else {
+        ctx.fillStyle = '#d7deea';
+        roundRect(ctx, o.x+ox, o.y, o.w, o.h, 4, true, false);
+        ctx.fillStyle = '#eff4fa';
+        ctx.fillRect(o.x+ox, o.y, o.w, 6);
+      }
+    }
+  }
+
+  // Münzen
+  for(const o of objs){
+    if(o.type==='coin' && !o.taken){
+      drawCoin(o.x+ox, o.y, o.r);
+      if(circleRect(o.x,o.y,o.r, player.x,player.y,player.w,player.h)){
+        o.taken=true;
+        G.coins += 1;
+        coinsEl.textContent = String(G.coins);
+        saveProgress();
+      }
+    }
+  }
+
+  // Checkpoints
+  for(const o of objs){
+    if(o.type==='checkpoint'){
+      drawCheckpoint(o.x+ox, o.y, o.w, o.h, o.label);
+    }
+  }
+
+  // Lehrer
+  for(const o of objs){
+    if(o.type==='teacher'){
+      drawTeacher(o.x+ox, o.y, o.w, o.h);
+      // Richtungs-Pfeil
+      ctx.save();
+      ctx.fillStyle = '#8aa0c8';
+      const cx = o.x+ox + o.w/2;
+      const by = o.y - 10;
+      if(o.dir>0){
+        ctx.beginPath(); ctx.moveTo(cx-6,by); ctx.lineTo(cx+6,by); ctx.lineTo(cx,by-6); ctx.closePath(); ctx.fill();
+      }else{
+        ctx.beginPath(); ctx.moveTo(cx-6,by-6); ctx.lineTo(cx+6,by-6); ctx.lineTo(cx,by); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  // Lehrer-Nachricht
+  if(G.msgTimer>0){
+    G.msgTimer -= dt;
+    drawFloatingMessage('Freundlicher Hinweis: Zurück zum letzten Punkt!', W/2, 40);
+  }
+
+  // Tür
+  if(door){
+    drawDoor(door.x+ox, door.y, door.w, door.h);
+  }
+
+  // Spieler
+  drawPlayer(player.x+ox, player.y, player.w, player.h);
+}
+
+function drawFloatingMessage(text,x,y){
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1;
+  const pad = 10;
+  ctx.font = '14px system-ui';
+  const w = ctx.measureText(text).width + pad*2;
+  roundRect(ctx, x-w/2, y, w, 30, 8, true, true);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillText(text, x-w/2+pad, y+20);
+  ctx.restore();
+}
+function drawCoin(x,y,r){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.fillStyle = getVar('--coin');
+  ctx.strokeStyle = getVar('--coin-edge');
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(0,0,r,0,Math.PI*2);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff7bf';
+  ctx.fillRect(-r/2,-2,r,4);
+  ctx.restore();
+}
+function drawCheckpoint(x,y,w,h,label){
+  ctx.save();
+  ctx.fillStyle = '#c5cedb';
+  ctx.fillRect(x+w/2-2, y, 4, h);
+  ctx.fillStyle = getVar('--checkpoint');
+  roundRect(ctx, x+w/2+2, y+6, 26, 14, 4, true, false);
+  ctx.fillStyle = '#a8b1c1';
+  roundRect(ctx, x+4, y+h-6, w-8, 6, 3, true, false);
+  ctx.fillStyle = '#55627a';
+  ctx.font = '12px system-ui';
+  ctx.fillText(label, x, y-6);
+  ctx.restore();
+}
+function drawDoor(x,y,w,h){
+  ctx.save();
+  ctx.fillStyle = getVar('--door-frame');
+  roundRect(ctx, x-6, y-6, w+12, h+12, 6, true, false);
+  ctx.fillStyle = getVar('--door');
+  roundRect(ctx, x, y, w, h, 4, true, false);
+  ctx.fillStyle = '#e8fbff';
+  roundRect(ctx, x+w*0.2, y+12, w*0.6, 18, 4, true, false);
+  ctx.fillStyle = '#e2e8f0';
+  roundRect(ctx, x+w-16, y+h/2-3, 10, 6, 3, true, false);
+  ctx.restore();
+}
+function drawTeacher(x,y,w,h){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.fillStyle = getVar('--teacher-body');
+  roundRect(ctx, 0, 0, w, h, 10, true, false);
+  ctx.fillStyle = getVar('--teacher-shirt');
+  roundRect(ctx, 4, h*0.35, w-8, 16, 6, true, false);
+  ctx.fillStyle = '#ffe3c4';
+  roundRect(ctx, w/2-10, -8, 20, 20, 10, true, false);
+  ctx.restore();
+}
+function drawPlayer(x,y,w,h){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.fillStyle = player.colors.pants;
+  roundRect(ctx, 6, h-18, w-12, 18, 4, true, false);
+  ctx.fillStyle = player.colors.shirt;
+  roundRect(ctx, 4, 10, w-8, 24, 6, true, false);
+  ctx.fillStyle = getVar('--player-skin');
+  roundRect(ctx, w/2-8, -2, 16, 16, 8, true, false);
+  ctx.fillStyle = '#2e3a59';
+  roundRect(ctx, 6, h-6, 12, 6, 3, true, false);
+  roundRect(ctx, w-18, h-6, 12, 6, 3, true, false);
+  ctx.restore();
+}
+
+/* Aktionen */
+function doJump(){
+  if(player.onGround){
+    player.vy = -650;
+    player.onGround = false;
+  }
+}
+function resetToCheckpoint(){
+  keys.left = false;
+  keys.right = false;
+  keys.up = false;
+  player.vx = 0;
+  player.vy = 0;
+  player.x = player.lastCheckpoint.x;
+  player.y = player.lastCheckpoint.y;
+  player.onGround = true;
+  G.sprint.active = false;
+  G.sprint.timer = 0;
+  G.invulnTimer = 0.25;
+  G.scroll = Math.max(0, player.x - wrap.clientWidth*0.35);
+}
+
+/* Menü/Pause */
+function openModal(){ modal.style.display='flex'; }
+function closeModal(){ modal.style.display='none'; }
+function togglePause(){
+  if(!G.running) return;
+  G.running = false;
+  modalTitle.textContent='Pause';
+  modalText.textContent='Tippe „Weiter“, um fortzufahren.';
+  openModal();
+}
+
+/* Shop-Funktionen – mit Sortierung (günstig → teuer) */
+function openShop(){ buildShop(); shopModal.style.display='flex'; }
+function closeShop(){ shopModal.style.display='none'; }
+function buildShop(){
+  shopGrid.innerHTML = '';
+  const sorted = pastelSkins.slice().sort((a,b)=> a.price - b.price);
+  sorted.forEach((skin)=>{
+    const idx = pastelSkins.indexOf(skin);
+    const item = document.createElement('div');
+    item.className = 'skin' + (skin.owned ? ' owned' : '') + (idx===activeSkinIndex ? ' active' : '');
+    const preview = document.createElement('div');
+    preview.className = 'preview';
+    preview.style.background = 'linear-gradient('+skin.shirt+','+skin.pants+')';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = skin.name;
+    const price = document.createElement('div');
+    price.className = 'price';
+    price.textContent = skin.owned ? 'Freigeschaltet' : (skin.price+' Münzen');
+    const btn = document.createElement('button');
+    btn.textContent = skin.owned ? (idx===activeSkinIndex ? 'Angezogen' : 'Anziehen') : 'Kaufen';
+    btn.addEventListener('click', ()=>{
+      if(!skin.owned){
+        const cost = skin.price;
+        if(G.coins >= cost){
+          G.coins -= cost;
+          coinsEl.textContent = String(G.coins);
+          skin.owned = true;
+          setActiveSkin(idx);
+          saveProgress();
+          buildShop();
+        } else {
+          alert('Du brauchst noch '+(cost - G.coins)+' Münzen.');
+        }
+      } else {
+        setActiveSkin(idx);
+        saveProgress();
+        buildShop();
+      }
+    });
+    item.appendChild(preview);
+    item.appendChild(name);
+    item.appendChild(price);
+    item.appendChild(btn);
+    shopGrid.appendChild(item);
+  });
+}
+function setActiveSkin(idx){
+  activeSkinIndex = idx;
+  const s = pastelSkins[idx];
+  player.colors.shirt = s.shirt;
+  player.colors.pants = s.pants;
+}
+
+/* Start/Restart */
+startBtn.addEventListener('click', ()=>{ startGame(); });
+shopBtn.addEventListener('click', openShop);
+openShopBtn2.addEventListener('click', ()=>{ closeModal(); openShop(); });
+menuBtnTop.addEventListener('click', openLevelMenu);
+
+resumeBtn.addEventListener('click', ()=>{ closeModal(); resume(); });
+restartBtn.addEventListener('click', ()=>{ closeModal(); startGame(); });
+openLevelBtn.addEventListener('click', ()=>{ closeModal(); openLevelMenu(); });
+closeLevelBtn.addEventListener('click', closeLevelMenu);
+closeShopBtn.addEventListener('click', closeShop);
+
+/* Level init */
+function startGame(){
+  objs = buildLevel(G.currentLevel);
+
+  // Startposition
+  const pod = objs.find(o=>o.type==='platform' && o.tag==='start');
+  player.x = pod.x + 80;
+  player.y = pod.y - player.h + 0.1;
+  player.vx = 0; player.vy = 0;
+  player.onGround = true;
+  player.lastCheckpoint = {x:player.x, y:player.y, label:'Start'};
+  checkEl.textContent = 'Start';
+
+  // Kamera
+  G.scroll = Math.max(0, player.x - wrap.clientWidth*0.35);
+
+  // Reset
+  G.sprint.active=false; G.sprint.timer=0; G.sprint.cooldown=0;
+  G.msgTimer = 0;
+  G.invulnTimer = 0;
+
+  // Speziell: Level 9 – negativen Drift sicher neutralisieren
+  if(G.currentLevel === 9){
+    player.vx = 0;
+  }
+
+  lvlEl.textContent = String(G.currentLevel);
+  coinsEl.textContent = String(G.coins);
+
+  drawBackground();
+
+  G.running = true;
+  lastTime = performance.now();
+  loop(lastTime);
+}
+function resume(){
+  if(G.running) return;
+  G.running = true;
+  lastTime = performance.now();
+  loop(lastTime);
+}
+
+/* Init */
+resize();
+loadProgress();
+// Level-Auswahl direkt öffnen
+(function openLevels(){ 
+  const levelModal = document.getElementById('levelModal');
+  const levelsGrid = document.getElementById('levelsGrid');
+  function build(){
+    levelsGrid.innerHTML='';
+    for(let i=1;i<=10;i++){
+      const btn = document.createElement('div');
+      btn.className = 'levelBtn' + (i>G.maxUnlocked ? ' locked' : '');
+      const name = document.createElement('div');
+      name.className='name';
+      name.textContent='Level '+i;
+      const status = document.createElement('div');
+      status.className='status';
+      if(i>G.maxUnlocked){
+        status.textContent='[gesperrt]';
+      } else if(i===G.maxUnlocked){
+        status.textContent='[neu/frei]';
+      } else {
+        status.textContent='[geschafft]';
+      }
+      btn.appendChild(name); btn.appendChild(status);
+      if(i<=G.maxUnlocked){
+        btn.addEventListener('click', ()=>{
+          levelModal.style.display='none';
+          G.currentLevel = i;
+          document.getElementById('lvl').textContent = String(G.currentLevel);
+          startGame();
+        });
+      }
+      levelsGrid.appendChild(btn);
+    }
+  }
+  build();
+  levelModal.style.display='flex';
+})();
+})();
+</script>
+</body>
+</html>

@@ -23,6 +23,8 @@ Die Spiele sind in den jeweiligen Schüler-Ordnern abgelegt:
 * **Leandro**: `Leandro/auto_parcours.html` ("Auto Parcours")
 * **Sarina**: `Sarina/Schulflur.html` ("Schulflur")
 * **Eric**: `Eric/spiel-eric.html` ("Münz-Sammler")
+* **Xenja**: `Xenja/spiel-xenja.html` ("Mein Labyrinth")
+* **Jaro**: `Jaro/spiel-jaro.html` ("Jump-and-Run")
 
 ## 🛠️ Entstehungsgeschichte
 Die Spiele wurden von den Schülerinnen und Schülern programmiert. Die HTML-Codes wurden anschliessend aus Word- (`.docx`) und Pages-Dokumenten extrahiert, bereinigt und in diesem Repository zusammengeführt.
