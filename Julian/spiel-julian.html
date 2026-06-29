@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Runner – Welten, Farben & Parallax</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#e9f4ff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  #game { position:relative; width:100vw; height:100vh; overflow:hidden; touch-action:none; color:#111; }
+
+  /* HUD */
+  .hud { position:absolute; left:0; right:0; top:0; padding:8px 10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:rgba(255,255,255,0.92); z-index:50; border-bottom:2px solid #000; }
+  .badge { background:#fff; border:2px solid #000; border-radius:10px; padding:4px 8px; font-weight:700; }
+  .right { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* Farbige Buttons */
+  .btn { border:2px solid #000; border-radius:10px; padding:8px 12px; font-weight:800; cursor:pointer; color:#111; box-shadow:2px 2px 0 #000; }
+  .btn:active { transform:translate(1px,1px); box-shadow:1px 1px 0 #000; }
+  .btn.green { background:#47d16a; }
+  .btn.yellow { background:#ffd54d; }
+  .btn.red { background:#ff6868; }
+  .btn.blue { background:#64a8ff; }
+  .btn.gray { background:#d7dbe0; }
+  .btn.orange { background:#ffae4d; }
+
+  /* Panels */
+  .panel { position:absolute; left:50%; top:54%; transform:translate(-50%,-50%); width:min(92vw, 760px); max-height:78vh; overflow:auto; background:#fff; border:3px solid #000; border-radius:14px; padding:14px; display:none; z-index:100; box-shadow:6px 6px 0 #000; }
+  .panel h3 { margin:6px 0 10px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; }
+  .item { border:2px solid #000; border-radius:12px; padding:10px; background:#f8f8f8; box-shadow:4px 4px 0 #000; }
+  .small { font-size:12px; opacity:0.85; }
+  .close { float:right; }
+
+  /* Welt: Hintergrundschichten */
+  #sky { position:absolute; left:0; right:0; top:0; bottom:0; z-index:0; }
+  .skyGrad { position:absolute; left:0; right:0; top:0; bottom:0; }
+  .cloudLayer { position:absolute; left:0; right:0; top:0; height:40%; z-index:0; pointer-events:none; }
+  .cloud { position:absolute; width:140px; height:60px; background:#fff; border:2px solid #000; border-radius:50px; filter:drop-shadow(2px 2px 0 #000); }
+  .cloud:before, .cloud:after { content:""; position:absolute; background:#fff; border:2px solid #000; border-radius:50px; width:80px; height:50px; top:10px; }
+  .cloud:before { left:-30px; }
+  .cloud:after { right:-30px; }
+
+  /* Ferne Hügel/Schulhöfe/Wälder/Bühnenkulisse */
+  .farLayer { position:absolute; bottom:22%; left:0; right:0; height:30%; z-index:1; pointer-events:none; }
+  .hill { position:absolute; width:260px; height:100px; background:#cde6b8; border:2px solid #000; border-radius:160px 160px 0 0; bottom:0; filter:drop-shadow(2px 2px 0 #000); }
+
+  /* Boden/Strasse mit zwei Parallax-Schichten */
+  .groundWrap { position:absolute; left:0; right:0; bottom:0; height:28%; z-index:3; }
+  .groundBack { position:absolute; left:0; right:0; bottom:18%; height:10%; background:repeating-linear-gradient(90deg, #9a9a9a 0 18px, #a5a5a5 18px 36px); border-top:3px solid #444; }
+  .groundFront { position:absolute; left:0; right:0; bottom:0; height:18%; background:repeating-linear-gradient(90deg, #6a6a6a 0 14px, #777 14px 28px); border-top:4px solid #333; }
+
+  /* Scrollstreifen */
+  .markings { position:absolute; left:0; right:0; bottom:9%; height:4px; background:repeating-linear-gradient(0deg, transparent 0 10px, #efefef 10px 40px); opacity:0.8; }
+
+  /* Lanes */
+  .lane { position:absolute; bottom:18%; width:28%; height:100%; border-left:2px dashed rgba(0,0,0,0.18); border-right:2px dashed rgba(0,0,0,0.18); z-index:4; }
+  .lane.single { width:34%; left:33%; }
+  .lane.doubleL { left:18%; }
+  .lane.doubleR { left:48%; }
+  .lane.l0 { left:8%; }
+  .lane.l1 { left:36%; }
+  .lane.l2 { left:64%; }
+
+  /* Spieler und Objekte */
+  .player { position:absolute; width:56px; height:64px; background:#2b7cff; border:3px solid #000; border-radius:12px; bottom:22%; left:0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; z-index:6; filter:drop-shadow(3px 3px 0 #000); }
+  @keyframes step { 0%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-4px) rotate(-1deg)} 100%{transform:translateY(0) rotate(0deg)} }
+  .player.run { animation:step 0.32s infinite linear; }
+  .player.jetpack { box-shadow:0 0 0 3px #ffe; }
+  .player.shield { outline:4px solid rgba(0,255,200,0.8); }
+  .shadow { position:absolute; width:46px; height:10px; background:rgba(0,0,0,0.25); border-radius:50%; bottom:21.5%; left:0; z-index:5; filter:blur(0.5px); }
+
+  .obstacle { position:absolute; width:52px; height:52px; background:#ff4b4b; border:3px solid #000; border-radius:10px; z-index:5; filter:drop-shadow(2px 2px 0 #000); }
+  .coin { position:absolute; width:34px; height:34px; background:#ffd54d; border:3px solid #000; border-radius:50%; z-index:5; filter:drop-shadow(2px 2px 0 #000); }
+
+  /* Nahe Deko (weltspezifisch) */
+  .deco { position:absolute; bottom:18%; width:120px; height:120px; border:3px solid #000; background:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; z-index:4; filter:drop-shadow(3px 3px 0 #000); }
+  .label { position:absolute; top:4px; left:6px; font-size:12px; font-weight:800; }
+
+  /* Schulen */
+  .deco.school { background:#ffe6b5; }
+  .house { position:absolute; width:100px; height:70px; background:#f7c97e; border:3px solid #000; bottom:20px; left:10px; }
+  .roof { position:absolute; width:0; height:0; border-left:55px solid transparent; border-right:55px solid transparent; border-bottom:40px solid #c04b3b; left:5px; bottom:90px; }
+  .door { position:absolute; width:20px; height:28px; background:#6b3f2b; border:2px solid #000; left:50%; transform:translateX(-50%); bottom:20px; }
+  .window { position:absolute; width:18px; height:16px; background:#fff; border:2px solid #000; }
+
+  /* Bäume */
+  .deco.tree { background:#dff5cc; }
+  .treeTrunk { position:absolute; width:18px; height:40px; background:#7a4b27; left:50px; bottom:10px; border:2px solid #000; }
+  .treeCrownRound { position:absolute; width:80px; height:60px; background:#7ed957; border:3px solid #000; border-radius:50%; left:20px; bottom:40px; }
+  .treeCrownCone { position:absolute; width:0; height:0; border-left:45px solid transparent; border-right:45px solid transparent; border-bottom:80px solid #3aa655; left:15px; bottom:40px; }
+
+  /* Bands */
+  .deco.band { background:#e5e4ff; }
+  .stageBase { position:absolute; width:100px; height:16px; background:#333; border:3px solid #000; bottom:20px; left:10px; }
+  .stageLight { position:absolute; width:10px; height:28px; background:#444; border:2px solid #000; top:10px; }
+  .mic { position:absolute; width:6px; height:28px; background:#222; left:56px; bottom:36px; }
+
+  .tip { position:absolute; bottom:24%; left:50%; transform:translateX(-50%); background:rgba(255,255,255,0.95); border:2px solid #000; border-radius:10px; padding:8px 12px; font-weight:800; z-index:40; box-shadow:3px 3px 0 #000; }
+
+  .touchZones { position:absolute; top:0; bottom:0; left:0; right:0; z-index:10; background:transparent; }
+</style>
+</head>
+<body>
+<div id="game" aria-label="Runner Game">
+  <div class="hud">
+    <span class="badge" id="worldLabel">Welt 1: Schulen – Limit 20</span>
+    <span class="badge">Münzen: <span id="coins">0</span></span>
+    <span class="badge">Tempo: <span id="speed">1.0</span>x</span>
+    <span class="badge">Inventar: <span id="invCount">0</span>/3</span>
+    <span class="badge">Base-Lager: <span id="baseCount">0</span></span>
+    <div class="right">
+      <button class="btn green" id="btnStart" type="button">Start</button>
+      <button class="btn yellow" id="btnPause" type="button">Pause</button>
+      <button class="btn red" id="btnRestart" type="button">Neustart</button>
+      <button class="btn blue" id="btnWorlds" type="button">Welten</button>
+      <button class="btn gray" id="btnBase" type="button">Base</button>
+      <button class="btn orange" id="btnItems" type="button">Items</button>
+    </div>
+  </div>
+
+  <!-- Hintergrund -->
+  <div id="sky">
+    <div class="skyGrad" id="skyGrad"></div>
+    <div class="cloudLayer" id="cloudLayer"></div>
+    <div class="farLayer" id="farLayer"></div>
+  </div>
+
+  <!-- Weltobjekte -->
+  <div id="world"></div>
+
+  <!-- Boden/Strasse: zwei Schichten + Markierungen -->
+  <div class="groundWrap">
+    <div class="groundBack" id="groundBack"></div>
+    <div class="groundFront" id="groundFront"></div>
+    <div class="markings" id="markings"></div>
+  </div>
+
+  <div class="tip" id="tip">Tippe Start. Wischen: hoch=Sprung, runter=Rolle, links/rechts=Spur</div>
+
+  <!-- Welten-Auswahl -->
+  <div class="panel" id="panelWorlds">
+    <button class="btn gray close" data-close="#panelWorlds" type="button">X</button>
+    <h3>Welten auswählen</h3>
+    <div id="worldButtons" class="row"></div>
+    <div class="small">Welten werden freigeschaltet, wenn du das Münz-Limit erreichst.</div>
+  </div>
+
+  <!-- Base -->
+  <div class="panel" id="panelBase">
+    <button class="btn gray close" data-close="#panelBase" type="button">X</button>
+    <h3>Base – Lager</h3>
+    <div class="small">Unbegrenztes Lagern. Inventar max. 3.</div>
+    <div class="row">
+      <span class="badge">Lager: <span id="baseSummary"></span></span>
+      <span class="badge">Inventar: <span id="invSummary"></span></span>
+    </div>
+    <div id="baseControls" class="grid"></div>
+  </div>
+
+  <!-- Items -->
+  <div class="panel" id="panelItems">
+    <button class="btn gray close" data-close="#panelItems" type="button">X</button>
+    <h3>Meine Items (Start/Stop)</h3>
+    <div class="small">Restzeit läuft nur, wenn aktiv.</div>
+    <div id="itemControls" class="grid"></div>
+  </div>
+
+  <div class="touchZones"></div>
+</div>
+
+<script>
+(function(){
+  const gameEl = document.getElementById('game');
+  const worldEl = document.getElementById('world');
+  const skyGrad = document.getElementById('skyGrad');
+  const cloudLayer = document.getElementById('cloudLayer');
+  const farLayer = document.getElementById('farLayer');
+
+  const groundBack = document.getElementById('groundBack');
+  const groundFront = document.getElementById('groundFront');
+  const markings = document.getElementById('markings');
+
+  const coinsEl = document.getElementById('coins');
+  const speedEl = document.getElementById('speed');
+  const invCountEl = document.getElementById('invCount');
+  const baseCountEl = document.getElementById('baseCount');
+  const worldLabelEl = document.getElementById('worldLabel');
+  const tipEl = document.getElementById('tip');
+
+  const panelWorlds = document.getElementById('panelWorlds');
+  const panelBase = document.getElementById('panelBase');
+  const panelItems = document.getElementById('panelItems');
+
+  const worldButtonsEl = document.getElementById('worldButtons');
+  const baseSummaryEl = document.getElementById('baseSummary');
+  const invSummaryEl = document.getElementById('invSummary');
+  const baseControlsEl = document.getElementById('baseControls');
+  const itemControlsEl = document.getElementById('itemControls');
+
+  const btnStart = document.getElementById('btnStart');
+  const btnPause = document.getElementById('btnPause');
+  const btnRestart = document.getElementById('btnRestart');
+  const btnWorlds = document.getElementById('btnWorlds');
+  const btnBase = document.getElementById('btnBase');
+  const btnItems = document.getElementById('btnItems');
+
+  // Welten-Definitionen (inkl. Farbstimmungen)
+  const WORLDS = [
+    { name:"Welt 1: Schulen", lanes:3, deco:"school", coinLimit:20, bg:"#cfe8ff", skyTop:"#e9f4ff", skyBottom:"#bde3ff", farColor:"#cde6b8" },
+    { name:"Welt 2: Bäume", lanes:2, deco:"tree", coinLimit:25, bg:"#dfffe6", skyTop:"#eafdec", skyBottom:"#bdf7c7", farColor:"#b9e3a8" },
+    { name:"Welt 3: Bands", lanes:1, deco:"band", coinLimit:50, bg:"#efeaff", skyTop:"#f3f0ff", skyBottom:"#e0dbff", farColor:"#d0ccff" }
+  ];
+  const UNLOCKED = [true, false, false];
+
+  let currentWorldIndex = 0;
+
+  // Labels für Deko
+  const DECO_VARIANTS = {
+    school: ["Schule", "Campus", "Aula", "Turnhalle"],
+    tree: ["Kiefer", "Eiche", "Birke", "Ahorn"],
+    band: ["Band", "Duo", "Trio", "Chor"]
+  };
+
+  // Spielzustand
+  let coins = 0;
+  let speed = 0;
+  let started = false;
+  let isPaused = false;
+  let elapsed = 0; // Gesamtspielzeit seit Start (für Speed-Kurve)
+
+  // Items / Base
+  let baseStorage = { jetpack:0, shield:0, magnet:0 };
+  const ITEM_CONFIG = {
+    jetpack: { label:"Jetpack", duration:55 },
+    shield:  { label:"Schild",  duration:60 },
+    magnet:  { label:"Magnet",  duration:60 }
+  };
+  let inventory = []; // {type, remaining, active}
+
+  // Spieler + Schatten
+  const player = document.createElement('div');
+  player.className = 'player';
+  player.textContent = 'YOU';
+  worldEl.appendChild(player);
+
+  const shadow = document.createElement('div');
+  shadow.className = 'shadow';
+  worldEl.appendChild(shadow);
+
+  let laneIndex = 1;
+  let isJumping = false, jumpTime = 0, maxJump = 0.6;
+  let isRolling = false, rollTime = 0, maxRoll = 0.5;
+
+  // Objekte
+  const obstacles = [];
+  const coinsArr = [];
+  const decos = [];
+  // Clouds/Hills (far)
+  const clouds = [];
+  const hills = [];
+
+  // Timer
+  let spawnTimerObstacle = 0;
+  let spawnTimerCoin = 0;
+  let spawnTimerDeco = 0;
+  let spawnTimerCloud = 0;
+  let spawnTimerHill = 0;
+
+  // Panels open/close
+  function openPanel(p) { p.style.display = 'block'; }
+  function closePanel(p) { p.style.display = 'none'; }
+  document.querySelectorAll('.close').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const sel = e.currentTarget.getAttribute('data-close');
+      if (sel) closePanel(document.querySelector(sel));
+    });
+  });
+
+  // HUD Buttons
+  btnStart.addEventListener('click', ()=>{
+    if (!started) { started = true; speed = 0.8; player.classList.add('run'); showTip('Los geht‘s!'); }
+    isPaused = false;
+  });
+  btnPause.addEventListener('click', ()=>{
+    if (!started) return;
+    isPaused = !isPaused;
+    btnPause.textContent = isPaused ? 'Weiter' : 'Pause';
+  });
+  btnRestart.addEventListener('click', ()=>resetGame());
+  btnWorlds.addEventListener('click', ()=>{ updateWorldsPanel(); openPanel(panelWorlds); });
+  btnBase.addEventListener('click', ()=>{ updateBasePanel(); openPanel(panelBase); });
+  btnItems.addEventListener('click', ()=>{ updateItemsPanel(); openPanel(panelItems); });
+
+  // Welt aufbauen
+  function setupWorld() {
+    const w = WORLDS[currentWorldIndex];
+    document.body.style.background = w.bg;
+    skyGrad.style.background = `linear-gradient(${w.skyTop}, ${w.skyBottom})`;
+    worldLabelEl.textContent = `${w.name} – Limit ${w.coinLimit}`;
+
+    // Lanes
+    Array.from(worldEl.querySelectorAll('.lane')).forEach(e=>e.remove());
+    const lanes = w.lanes;
+    if (lanes === 3) { addLane('l0'); addLane('l1'); addLane('l2'); laneIndex = 1; }
+    else if (lanes === 2) { addLane('doubleL'); addLane('doubleR'); laneIndex = 0; }
+    else { addLane('single'); laneIndex = 0; }
+    positionPlayer();
+
+    // Ferne Farbe
+    farLayer.style.background = 'transparent';
+    farLayer.dataset.farColor = w.farColor;
+
+    // Erste Wolken/Hügel
+    for (let i=0;i<4;i++) spawnCloud(true);
+    for (let i=0;i<3;i++) spawnHill(true);
+
+    // Nahe Deko
+    for (let i=0;i<4;i++) spawnDeco(true);
+  }
+
+  function addLane(cls) {
+    const lane = document.createElement('div');
+    lane.className = 'lane ' + cls;
+    worldEl.appendChild(lane);
+  }
+
+  function positionPlayer() {
+    const lanes = WORLDS[currentWorldIndex].lanes;
+    let xPercent;
+    if (lanes === 3) xPercent = [12, 40, 68][laneIndex];
+    else if (lanes === 2) xPercent = [28, 58][laneIndex];
+    else xPercent = 48;
+    player.style.left = `calc(${xPercent}% - 28px)`;
+    shadow.style.left = `calc(${xPercent}% - 23px)`;
+  }
+
+  // Panels
+  function updateWorldsPanel() {
+    worldButtonsEl.innerHTML = '';
+    WORLDS.forEach((w, i)=>{
+      const b = document.createElement('button');
+      b.className = 'btn ' + (UNLOCKED[i] ? 'blue' : 'gray');
+      b.textContent = UNLOCKED[i] ? w.name : w.name + ' (gesperrt)';
+      b.disabled = !UNLOCKED[i];
+      b.addEventListener('click', ()=>{
+        currentWorldIndex = i;
+        closePanel(panelWorlds);
+        resetGame(false);
+        showTip(`Gestartet: ${WORLDS[currentWorldIndex].name}`);
+      });
+      worldButtonsEl.appendChild(b);
+    });
+  }
+
+  // Spawn-Helfer
+  function randomLane() {
+    const lanes = WORLDS[currentWorldIndex].lanes;
+    return Math.floor(Math.random()*lanes);
+  }
+  function laneToLeft(lane) {
+    const lanes = WORLDS[currentWorldIndex].lanes;
+    if (lanes===3) return ['12%','40%','68%'][lane];
+    if (lanes===2) return ['28%','58%'][lane];
+    return '48%';
+  }
+
+  // Hindernis/Münzen
+  function spawnObstacle() {
+    const el = document.createElement('div');
+    el.className = 'obstacle';
+    el.style.bottom = '18%';
+    const lane = randomLane();
+    el.dataset.lane = lane;
+    el.style.left = laneToLeft(lane);
+    el.style.top = '-60px';
+    worldEl.appendChild(el);
+    obstacles.push({ el, y: -60 });
+  }
+
+  function spawnCoin() {
+    const el = document.createElement('div');
+    el.className = 'coin';
+    el.style.bottom = '18%';
+    const lane = randomLane();
+    el.dataset.lane = lane;
+    el.style.left = laneToLeft(lane);
+    el.style.top = '-40px';
+    worldEl.appendChild(el);
+    coinsArr.push({ el, y: -40 });
+  }
+
+  // Nahe Deko passend zur Welt
+  function spawnDeco(initial=false) {
+    const type = WORLDS[currentWorldIndex].deco;
+    const side = Math.random() < 0.5 ? 'left' : 'right';
+    const d = document.createElement('div');
+    d.className = 'deco ' + type;
+
+    if (type === 'school') {
+      const house = document.createElement('div'); house.className='house';
+      const roof = document.createElement('div'); roof.className='roof';
+      const door = document.createElement('div'); door.className='door';
+      const win1 = document.createElement('div'); win1.className='window'; win1.style.left='22px'; win1.style.bottom='48px';
+      const win2 = document.createElement('div'); win2.className='window'; win2.style.right='22px'; win2.style.bottom='48px';
+      const label = document.createElement('div'); label.className='label'; label.textContent = rndLabel('school');
+      d.append(house, roof, door, win1, win2, label);
+    } else if (type === 'tree') {
+      const trunk = document.createElement('div'); trunk.className='treeTrunk';
+      d.appendChild(trunk);
+      if (Math.random()<0.5) {
+        const crown = document.createElement('div'); crown.className='treeCrownRound'; d.appendChild(crown);
+      } else {
+        const cone = document.createElement('div'); cone.className='treeCrownCone'; d.appendChild(cone);
+      }
+      const label = document.createElement('div'); label.className='label'; label.textContent = rndLabel('tree');
+      d.appendChild(label);
+    } else if (type === 'band') {
+      const base = document.createElement('div'); base.className='stageBase';
+      const m = document.createElement('div'); m.className='mic';
+      const l1 = document.createElement('div'); l1.className='stageLight'; l1.style.left='18px';
+      const l2 = document.createElement('div'); l2.className='stageLight'; l2.style.left='48px';
+      const l3 = document.createElement('div'); l3.className='stageLight'; l3.style.left='78px';
+      const label = document.createElement('div'); label.className='label'; label.textContent = rndLabel('band');
+      d.append(base, m, l1, l2, l3, label);
+    }
+
+    d.dataset.side = side;
+    const xStart = side==='left' ? -140 : (window.innerWidth + 20);
+    const xAdjust = initial ? (side==='left' ? Math.random()* (window.innerWidth*0.6) : -(Math.random()* (window.innerWidth*0.6))) : 0;
+    d.style.left = (xStart + xAdjust) + 'px';
+    d.style.top = (36 + Math.random() * 10) + '%';
+    worldEl.appendChild(d);
+    decos.push({ el:d, x: xStart + xAdjust });
+  }
+
+  function rndLabel(type) {
+    const arr = DECO_VARIANTS[type] || [''];
+    return arr[Math.floor(Math.random()*arr.length)];
+  }
+
+  // Ferne Schicht: Wolken
+  function spawnCloud(initial=false) {
+    const c = document.createElement('div');
+    c.className = 'cloud';
+    const y = 20 + Math.random()* 10; // in %
+    const side = Math.random() < 0.5 ? 'left' : 'right';
+    const xStart = side==='left' ? -180 : (window.innerWidth + 40);
+    c.style.top = y + '%';
+    c.style.left = (xStart + (initial ? (side==='left' ? Math.random()* (window.innerWidth*0.7) : -(Math.random()* (window.innerWidth*0.7))) : 0)) + 'px';
+    cloudLayer.appendChild(c);
+    clouds.push({ el:c, x: parseFloat(c.style.left), side });
+  }
+
+  // Ferne Schicht: Hügel
+  function spawnHill(initial=false) {
+    const h = document.createElement('div');
+    h.className = 'hill';
+    h.style.background = WORLDS[currentWorldIndex].farColor;
+    const side = Math.random() < 0.5 ? 'left' : 'right';
+    const xStart = side==='left' ? -300 : (window.innerWidth + 60);
+    h.style.left = (xStart + (initial ? (side==='left' ? Math.random()* (window.innerWidth*0.6) : -(Math.random()* (window.innerWidth*0.6))) : 0)) + 'px';
+    h.style.bottom = '0px';
+    farLayer.appendChild(h);
+    hills.push({ el:h, x: parseFloat(h.style.left), side });
+  }
+
+  // Panels Inhalte: Base
+  function updateBasePanel() {
+    baseSummaryEl.textContent = `Jetpack ${baseStorage.jetpack}, Schild ${baseStorage.shield}, Magnet ${baseStorage.magnet}`;
+    invSummaryEl.textContent = inventory.map(i=>ITEM_CONFIG[i.type].label).join(', ') || '–';
+    baseControlsEl.innerHTML = '';
+    ['jetpack','shield','magnet'].forEach(type=>{
+      const card = document.createElement('div');
+      card.className = 'item';
+      const countInv = inventory.filter(i=>i.type===type).length;
+      card.innerHTML = `
+        <strong>${ITEM_CONFIG[type].label}</strong>
+        <div class="small">Lager: ${baseStorage[type]} | Inventar: ${countInv}</div>
+        <div class="row">
+          <button class="btn blue" data-act="toInv" data-type="${type}" type="button">Ins Inventar</button>
+          <button class="btn gray" data-act="toBase" data-type="${type}" type="button">Ins Lager</button>
+        </div>
+      `;
+      baseControlsEl.appendChild(card);
+    });
+    baseControlsEl.querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', (e)=>{
+        const type = e.currentTarget.getAttribute('data-type');
+        const act = e.currentTarget.getAttribute('data-act');
+        if (act==='toInv') moveBaseToInv(type);
+        if (act==='toBase') moveInvToBase(type);
+        updateBasePanel();
+        refreshHUD();
+      });
+    });
+  }
+
+  function moveBaseToInv(type) {
+    if (baseStorage[type] > 0 && inventory.length < 3) {
+      baseStorage[type]--;
+      inventory.push({ type, remaining: ITEM_CONFIG[type].duration, active:false });
+    }
+  }
+  function moveInvToBase(type) {
+    const idx = inventory.findIndex(i=>i.type===type);
+    if (idx>=0) {
+      inventory.splice(idx,1);
+      baseStorage[type]++;
+    }
+  }
+
+  // Items Panel
+  function updateItemsPanel() {
+    itemControlsEl.innerHTML = '';
+    if (inventory.length===0) {
+      itemControlsEl.innerHTML = '<div class="small">Kein Item im Inventar.</div>';
+      return;
+    }
+    inventory.forEach((it, idx)=>{
+      const card = document.createElement('div');
+      card.className = 'item';
+      card.innerHTML = `
+        <strong>${ITEM_CONFIG[it.type].label}</strong>
+        <div class="small">Restzeit: <span data-rem="${idx}">${it.remaining.toFixed(1)}</span>s</div>
+        <div class="row">
+          <button class="btn green" data-act="toggle" data-idx="${idx}" type="button">${it.active?'Stop':'Start'}</button>
+          <button class="btn orange" data-act="drop" data-idx="${idx}" type="button">Ablegen</button>
+        </div>
+      `;
+      itemControlsEl.appendChild(card);
+    });
+    itemControlsEl.querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', (e)=>{
+        const act = e.currentTarget.getAttribute('data-act');
+        const idx = +e.currentTarget.getAttribute('data-idx');
+        if (act==='toggle') {
+          inventory[idx].active = !inventory[idx].active;
+          applyItemEffects();
+          updateItemsPanel();
+        } else if (act==='drop') {
+          const it = inventory.splice(idx,1)[0];
+          baseStorage[it.type]++;
+          applyItemEffects();
+          updateItemsPanel();
+          refreshHUD();
+        }
+      });
+    });
+  }
+
+  function applyItemEffects() {
+    const jetActive = inventory.some(i=>i.type==='jetpack' && i.active && i.remaining>0);
+    const shieldActive = inventory.some(i=>i.type==='shield' && i.active && i.remaining>0);
+    player.classList.toggle('jetpack', jetActive);
+    player.classList.toggle('shield', shieldActive);
+  }
+
+  // Reset
+  function resetGame(full=true) {
+    if (full) {
+      coins = 0; started = false; speed = 0; elapsed = 0;
+      btnPause.textContent = 'Pause';
+      player.classList.remove('run');
+    }
+    isPaused = false;
+
+    // Objekte entfernen
+    obstacles.forEach(o=>o.el.remove()); obstacles.length=0;
+    coinsArr.forEach(c=>c.el.remove()); coinsArr.length=0;
+    decos.forEach(d=>d.el.remove()); decos.length=0;
+    clouds.forEach(c=>c.el.remove()); clouds.length=0;
+    hills.forEach(h=>h.el.remove()); hills.length=0;
+
+    spawnTimerObstacle = 0; spawnTimerCoin = 0; spawnTimerDeco = 0; spawnTimerCloud = 0; spawnTimerHill = 0;
+
+    // Spieler-Zustände
+    isJumping=false; isRolling=false; player.style.transform='translateY(0)'; player.style.height='64px';
+    shadow.style.transform='scale(1)';
+    setupWorld();
+
+    // kleine Start-Münzen
+    for (let i=0;i<3;i++) spawnCoin();
+    refreshHUD();
+    showTip(full ? 'Neustart!' : 'Welt geladen');
+  }
+
+  // Anzeige aktualisieren
+  function refreshHUD() {
+    coinsEl.textContent = coins;
+    speedEl.textContent = Math.max(0, speed).toFixed(1);
+    invCountEl.textContent = inventory.length;
+    const baseTotal = baseStorage.jetpack + baseStorage.shield + baseStorage.magnet;
+    baseCountEl.textContent = baseTotal;
+    const w = WORLDS[currentWorldIndex];
+    worldLabelEl.textContent = `${w.name} – Limit ${w.coinLimit}`;
+  }
+
+  function showTip(text) {
+    tipEl.textContent = text;
+    tipEl.style.display = 'block';
+    clearTimeout(showTip._t);
+    showTip._t = setTimeout(()=>{ tipEl.style.display='none'; }, 1600);
+  }
+
+  // Steuerung: Touch + Tasten
+  let touchStartX=0, touchStartY=0, touchStartTime=0;
+  gameEl.addEventListener('touchstart', (e)=>{
+    const t = e.changedTouches[0];
+    touchStartX = t.clientX; touchStartY = t.clientY; touchStartTime = performance.now();
+  }, {passive:true});
+  gameEl.addEventListener('touchend', (e)=>{
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = t.clientY - touchStartY;
+    const dt = performance.now() - touchStartTime;
+    const absX = Math.abs(dx), absY = Math.abs(dy);
+    const minDist = 30;
+    if (Math.max(absX, absY) < minDist || dt > 800) return;
+    if (absX > absY) { if (dx > 0) changeLane(1); else changeLane(-1); }
+    else { if (dy < 0) doJump(); else doRoll(); }
+  }, {passive:true});
+
+  document.addEventListener('keydown', (e)=>{
+    if (e.key==='ArrowLeft') changeLane(-1);
+    if (e.key==='ArrowRight') changeLane(1);
+    if (e.key==='ArrowUp') doJump();
+    if (e.key==='ArrowDown') doRoll();
+    if (e.key===' ') { if (!started){ btnStart.click(); } else { btnPause.click(); } }
+  });
+
+  function changeLane(dir) {
+    const lanes = WORLDS[currentWorldIndex].lanes;
+    const newLane = Math.max(0, Math.min(lanes-1, laneIndex + dir));
+    laneIndex = newLane;
+    positionPlayer();
+  }
+  function doJump() {
+    if (!started || isPaused) return;
+    if (isJumping) return;
+    isJumping = true; jumpTime = 0;
+  }
+  function doRoll() {
+    if (!started || isPaused) return;
+    if (isRolling) return;
+    isRolling = true; rollTime = 0;
+  }
+
+  // Kollision
+  function rectsCollide(r1, r2) {
+    return !(r2.left>r1.right || r2.right<r1.left || r2.top>r1.bottom || r2.bottom<r1.top);
+  }
+
+  // Spielschleife
+  let lastTime = performance.now();
+  function loop(now) {
+    const dt = (now - lastTime)/1000;
+    lastTime = now;
+    if (started && !isPaused) update(dt);
+    // Parallax-Boden scrollt IMMER etwas für lebendigen Eindruck (sehr langsam, wenn nicht gestartet)
+    updateGroundParallax(dt, Math.max(speed, 0.2));
+    requestAnimationFrame(loop);
+  }
+
+  // Geschwindigkeit: von 0.8 auf max 4.0 in ~30s
+  function speedCurve(t) {
+    const tNorm = Math.min(1, t / 30); // 0..1 in 30 Sekunden
+    const eased = tNorm*tNorm*(3-2*tNorm); // smoothstep
+    return 0.8 + eased * (4.0 - 0.8);
+  }
+
+  function update(dt) {
+    elapsed += dt;
+    speed = speedCurve(elapsed);
+
+    // Sprung / Rolle
+    if (isJumping) {
+      jumpTime += dt;
+      const h = Math.sin(Math.min(jumpTime/maxJump,1)*Math.PI) * 90;
+      player.style.transform = `translateY(${-h}px)`;
+      shadow.style.transform = `scale(${1 - Math.min(0.3, h/400)})`;
+      if (jumpTime >= maxJump) { isJumping=false; player.style.transform='translateY(0)'; shadow.style.transform='scale(1)'; }
+    }
+    if (isRolling) {
+      rollTime += dt;
+      player.style.height = '44px';
+      if (rollTime >= maxRoll) { isRolling=false; player.style.height='64px'; }
+    }
+
+    // Spawn-Intervalle werden mit Geschwindigkeit kürzer
+    spawnTimerObstacle -= dt;
+    spawnTimerCoin -= dt;
+    spawnTimerDeco -= dt;
+    spawnTimerCloud -= dt;
+    spawnTimerHill -= dt;
+
+    const laneCount = WORLDS[currentWorldIndex].lanes;
+
+    if (spawnTimerObstacle <= 0 && laneCount >= 1) {
+      spawnObstacle();
+      spawnTimerObstacle = Math.max(0.6, 1.6 - speed*0.25);
+    }
+    if (spawnTimerCoin <= 0) {
+      spawnCoin();
+      spawnTimerCoin = Math.max(0.25, 0.9 - speed*0.18);
+    }
+    if (spawnTimerDeco <= 0) {
+      spawnDeco();
+      spawnTimerDeco = Math.max(0.5, 1.2 - speed*0.18);
+    }
+    if (spawnTimerCloud <= 0) {
+      spawnCloud();
+      spawnTimerCloud = 2.4;
+    }
+    if (spawnTimerHill <= 0) {
+      spawnHill();
+      spawnTimerHill = 3.2;
+    }
+
+    // Bewegung der Objekte
+    const vy = 220 * speed; // Entgegenkommen nach unten
+    moveVertical(obstacles, vy);
+    moveVertical(coinsArr, vy);
+
+    // Deko (nah) seitlich
+    moveDecos(140 * speed);
+    // Ferne Schichten
+    moveClouds(20 * speed); // sehr langsam
+    moveHills(60 * speed);  // langsam
+
+    // Items Restzeiten
+    inventory.forEach(i=>{
+      if (i.active && i.remaining>0) i.remaining = Math.max(0, i.remaining - dt);
+    });
+    itemControlsEl.querySelectorAll('span[data-rem]').forEach(span=>{
+      const idx = +span.getAttribute('data-rem');
+      if (inventory[idx]) span.textContent = inventory[idx].remaining.toFixed(1);
+    });
+
+    // Freischalten der nächsten Welt
+    const w = WORLDS[currentWorldIndex];
+    if (coins >= w.coinLimit && currentWorldIndex < WORLDS.length-1) {
+      if (!UNLOCKED[currentWorldIndex+1]) {
+        UNLOCKED[currentWorldIndex+1] = true;
+        showTip(`${WORLDS[currentWorldIndex+1].name} freigeschaltet! Öffne "Welten".`);
+      }
+    }
+
+    refreshHUD();
+  }
+
+  function updateGroundParallax(dt, spd) {
+    // Boden-Streifen bewegen
+    const backSpeed = 40 * spd;   // langsam
+    const frontSpeed = 90 * spd;  // schneller
+    const markSpeed = 120 * spd;  // am schnellsten
+
+    groundBack._off = (groundBack._off || 0) + backSpeed * dt;
+    groundFront._off = (groundFront._off || 0) + frontSpeed * dt;
+    markings._off = (markings._off || 0) + markSpeed * dt;
+
+    groundBack.style.backgroundPosition = `${groundBack._off}px 0`;
+    groundFront.style.backgroundPosition = `${groundFront._off}px 0`;
+    markings.style.backgroundPosition = `0 ${markings._off}px`;
+  }
+
+  function moveVertical(list, vy) {
+    for (let i=list.length-1; i>=0; i--) {
+      const obj = list[i];
+      obj.y += vy * 0.016;
+      obj.el.style.top = obj.y + 'px';
+
+      if (obj.y > window.innerHeight) { obj.el.remove(); list.splice(i,1); continue; }
+
+      const prect = player.getBoundingClientRect();
+      const orect = obj.el.getBoundingClientRect();
+
+      if (obj.el.classList.contains('obstacle')) {
+        if (rectsCollide(prect, orect)) {
+          // Kollision: 2 Münzen verlieren
+          coins = Math.max(0, coins - 2);
+          showTip('Autsch! 2 Münzen verloren.');
+          obj.el.remove(); list.splice(i,1);
+        }
+      } else if (obj.el.classList.contains('coin')) {
+        if (rectsCollide(prect, orect)) {
+          coins++;
+          obj.el.remove(); list.splice(i,1);
+        }
+      }
+    }
+  }
+
+  function moveDecos(vx) {
+    for (let i=decos.length-1; i>=0; i--) {
+      const d = decos[i];
+      const side = d.el.dataset.side;
+      if (side==='left') d.x += vx * 0.016; else d.x -= vx * 0.016;
+      d.el.style.left = d.x + 'px';
+      if (d.x < -180 || d.x > window.innerWidth + 180) {
+        d.el.remove(); decos.splice(i,1);
+      }
+    }
+  }
+
+  function moveClouds(vx) {
+    for (let i=clouds.length-1; i>=0; i--) {
+      const c = clouds[i];
+      if (c.side==='left') c.x += vx * 0.016; else c.x -= vx * 0.016;
+      c.el.style.left = c.x + 'px';
+      if (c.x < -220 || c.x > window.innerWidth + 220) {
+        c.el.remove(); clouds.splice(i,1);
+      }
+    }
+  }
+
+  function moveHills(vx) {
+    for (let i=hills.length-1; i>=0; i--) {
+      const h = hills[i];
+      if (h.side==='left') h.x += vx * 0.016; else h.x -= vx * 0.016;
+      h.el.style.left = h.x + 'px';
+      if (h.x < -340 || h.x > window.innerWidth + 340) {
+        h.el.remove(); hills.splice(i,1);
+      }
+    }
+  }
+
+  // Start
+  setupWorld();
+  resetGame();
+
+  // Loop
+  requestAnimationFrame(loop);
+
+  // Touch-Hinweis nach 3s ausblenden
+  setTimeout(()=>{ tipEl.style.display='none'; }, 3000);
+})();
+</script>
+</body>
+</html>
+

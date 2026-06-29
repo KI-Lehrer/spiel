@@ -18,6 +18,8 @@ Die Spiele sind in den jeweiligen Schüler-Ordnern abgelegt:
 * **Mona**: `Mona/spiel-mona.html` ("Wisch-Spiel")
 * **Olivia**: `Olivia/spiel-olivia.html` ("Käse-Abenteuer")
 * **Nicola**: `Nicola/spiel-nicola.html` ("Schulabenteuer")
+* **Julian**: `Julian/spiel-julian.html` ("Runner – Welten & Parallax")
+* **Malea_Elina**: `Malea_Elina/spiel-malea_elina.html` ("Symbol-Run")
 
 ## 🛠️ Entstehungsgeschichte
 Die Spiele wurden von den Schülerinnen und Schülern programmiert. Die HTML-Codes wurden anschliessend aus Word- (`.docx`) und Pages-Dokumenten extrahiert, bereinigt und in diesem Repository zusammengeführt.

@@ -152,6 +152,8 @@
     .card.mona { --theme-color: #a855f7; --glow: rgba(168, 85, 247, 0.25); }
     .card.olivia { --theme-color: #eab308; --glow: rgba(234, 179, 8, 0.25); }
     .card.nicola { --theme-color: #06b6d4; --glow: rgba(6, 182, 212, 0.25); }
+    .card.julian { --theme-color: #6366f1; --glow: rgba(99, 102, 241, 0.25); }
+    .card.malea_elina { --theme-color: #14b8a6; --glow: rgba(20, 184, 166, 0.25); }
 
     .card::before {
       content: '';
@@ -476,7 +478,7 @@
       <div class="stats">
         <div class="stat-item">
           <div class="stat-dot"></div>
-          <span>8 Spiele online</span>
+          <span>10 Spiele online</span>
         </div>
       </div>
     </header>
@@ -656,6 +658,47 @@
         </div>
         <h2 class="game-title">Schulabenteuer</h2>
         <p class="game-desc">Löse spannende Rätsel und öffne die Türen der Schule in diesem friedlichen, interaktiven Abenteuerspiel.</p>
+        <button class="play-btn">
+          <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Jetzt spielen
+        </button>
+      </div>
+
+      <!-- Card: Julian -->
+      <div class="card julian" onclick="playGame('Julian', 'spiel-julian.html', 'Runner – Welten & Parallax', '#6366f1')">
+        <div class="author-badge">
+          <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Julian
+        </div>
+        <div class="icon-container">
+          <!-- Mountains / Parallax / World Icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="m3 20 7-10 6 8 5-7 3 9H3z" />
+          </svg>
+        </div>
+        <h2 class="game-title">Runner – Welten & Parallax</h2>
+        <p class="game-desc">Ein fortgeschrittener Runner mit drei Welten (Schule, Bäume, Bands), Item-System, Parallax-Hintergründen und einem Base-Lager!</p>
+        <button class="play-btn">
+          <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Jetzt spielen
+        </button>
+      </div>
+
+      <!-- Card: Malea & Elina -->
+      <div class="card malea_elina" onclick="playGame('Malea_Elina', 'spiel-malea_elina.html', 'Symbol-Run', '#14b8a6')">
+        <div class="author-badge">
+          <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Malea &amp; Elina
+        </div>
+        <div class="icon-container">
+          <!-- Hexagon Symbol Icon -->
+          <svg viewBox="0 0 24 24">
+            <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
+            <circle cx="12" cy="12" r="4" />
+          </svg>
+        </div>
+        <h2 class="game-title">Symbol-Run</h2>
+        <p class="game-desc">Bewege deinen Roboter geschickt durch das Neon-Spielfeld, sammle leuchtende Symbole und weiche Gegnern aus. 25 Levels und anpassbare Avatare!</p>
         <button class="play-btn">
           <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
           Jetzt spielen
