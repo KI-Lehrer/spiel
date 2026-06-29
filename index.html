@@ -151,7 +151,7 @@
     .card.fynn { --theme-color: #f97316; --glow: rgba(249, 115, 22, 0.25); }
     .card.mona { --theme-color: #a855f7; --glow: rgba(168, 85, 247, 0.25); }
     .card.olivia { --theme-color: #eab308; --glow: rgba(234, 179, 8, 0.25); }
-    .card.nicola { --theme-color: #64748b; --glow: rgba(100, 116, 139, 0.05); }
+    .card.nicola { --theme-color: #06b6d4; --glow: rgba(6, 182, 212, 0.25); }
 
     .card::before {
       content: '';
@@ -276,25 +276,6 @@
       border-color: var(--theme-color);
       color: var(--bg-dark);
       box-shadow: 0 4px 15px var(--glow);
-    }
-
-    /* WIP Card (Nicola) styling */
-    .card.nicola {
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-
-    .card.nicola:hover {
-      transform: none;
-      border-color: var(--border-card);
-      box-shadow: none;
-    }
-
-    .card.nicola .play-btn {
-      cursor: not-allowed;
-      background: rgba(255, 255, 255, 0.02);
-      color: var(--text-muted);
-      border-color: rgba(255, 255, 255, 0.05);
     }
 
     /* Overlay Player / Modal */
@@ -495,11 +476,7 @@
       <div class="stats">
         <div class="stat-item">
           <div class="stat-dot"></div>
-          <span>7 Spiele online</span>
-        </div>
-        <div class="stat-item">
-          <div class="stat-dot wip"></div>
-          <span>1 in Entwicklung</span>
+          <span>8 Spiele online</span>
         </div>
       </div>
     </header>
@@ -665,22 +642,23 @@
         </button>
       </div>
 
-      <!-- Card: Nicola (WIP) -->
-      <div class="card nicola">
+      <!-- Card: Nicola -->
+      <div class="card nicola" onclick="playGame('Nicola', 'spiel-nicola.html', 'Schulabenteuer', '#06b6d4')">
         <div class="author-badge">
           <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           Nicola
         </div>
         <div class="icon-container">
-          <!-- Wrench / Tool Icon -->
+          <!-- Door/Open Gateway Icon representing 'Offene Türen' -->
           <svg viewBox="0 0 24 24">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            <path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 11v.01M15 11v.01"/>
           </svg>
         </div>
-        <h2 class="game-title">Spiele-Werkstatt</h2>
-        <p class="game-desc">Nicola feilt momentan noch an den letzten Details des Codes. Das Spiel ist bald spielbereit!</p>
-        <button class="play-btn" disabled>
-          In Arbeit...
+        <h2 class="game-title">Schulabenteuer</h2>
+        <p class="game-desc">Löse spannende Rätsel und öffne die Türen der Schule in diesem friedlichen, interaktiven Abenteuerspiel.</p>
+        <button class="play-btn">
+          <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Jetzt spielen
         </button>
       </div>
 
