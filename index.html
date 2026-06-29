@@ -154,6 +154,8 @@
     .card.nicola { --theme-color: #06b6d4; --glow: rgba(6, 182, 212, 0.25); }
     .card.julian { --theme-color: #6366f1; --glow: rgba(99, 102, 241, 0.25); }
     .card.malea_elina { --theme-color: #14b8a6; --glow: rgba(20, 184, 166, 0.25); }
+    .card.leandro { --theme-color: #84cc16; --glow: rgba(132, 204, 22, 0.25); }
+    .card.sarina { --theme-color: #ff6b6b; --glow: rgba(255, 107, 107, 0.25); }
 
     .card::before {
       content: '';
@@ -478,7 +480,7 @@
       <div class="stats">
         <div class="stat-item">
           <div class="stat-dot"></div>
-          <span>10 Spiele online</span>
+          <span>12 Spiele online</span>
         </div>
       </div>
     </header>
@@ -685,7 +687,7 @@
       </div>
 
       <!-- Card: Malea & Elina -->
-      <div class="card malea_elina" onclick="playGame('Malea_Elina', 'spiel-malea_elina.html', 'Symbol-Run', '#14b8a6')">
+      <div class="card malea_elina" onclick="playGame('Malea_Elina', 'Symbol-Run.html', 'Symbol-Run', '#14b8a6')">
         <div class="author-badge">
           <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           Malea &amp; Elina
@@ -699,6 +701,46 @@
         </div>
         <h2 class="game-title">Symbol-Run</h2>
         <p class="game-desc">Bewege deinen Roboter geschickt durch das Neon-Spielfeld, sammle leuchtende Symbole und weiche Gegnern aus. 25 Levels und anpassbare Avatare!</p>
+        <button class="play-btn">
+          <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Jetzt spielen
+        </button>
+      </div>
+
+      <!-- Card: Leandro -->
+      <div class="card leandro" onclick="playGame('Leandro', 'spiel-leandro.html', 'Auto Parcours', '#84cc16')">
+        <div class="author-badge">
+          <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Leandro
+        </div>
+        <div class="icon-container">
+          <!-- Car Icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 1 12.7V16c0 .6.4 1 1 1h2m0 0a3 3 0 0 0 6 0m0 0h6m0 0a3 3 0 0 0 6 0" />
+          </svg>
+        </div>
+        <h2 class="game-title">Auto Parcours</h2>
+        <p class="game-desc">Steuere dein Auto durch den Parcours, sammle Punkte, steige in Levels auf und kaufe im Shop neue Farben, Themes oder Autos!</p>
+        <button class="play-btn">
+          <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Jetzt spielen
+        </button>
+      </div>
+
+      <!-- Card: Sarina -->
+      <div class="card sarina" onclick="playGame('Sarina', 'spiel-sarina.html', 'Schulflur', '#ff6b6b')">
+        <div class="author-badge">
+          <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Sarina
+        </div>
+        <div class="icon-container">
+          <!-- Corridor / Stairs Icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="M19 3v4h-4v4h-4v4H7v4H3v3h20V3h-4z" />
+          </svg>
+        </div>
+        <h2 class="game-title">Schulflur</h2>
+        <p class="game-desc">Navigiere durch den Schulflur, weiche Hindernissen und Lehrern aus, sammle Münzen und schalte im Shop Pastell-Skins frei!</p>
         <button class="play-btn">
           <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
           Jetzt spielen
