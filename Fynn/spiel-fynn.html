@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mühle (Nine Men's Morris) — Konfetti bei Sieg</title>
+<style>
+:root{
+  --board-size: 480px;
+  --bg: #f3f4f6;
+  --board-bg: #e6e1d3;
+  --line: #333;
+  --p1: #1f77b4; /* Blau */
+  --p2: #ff7f0e; /* Orange */
+  --hole: #ddd;
+  --highlight: #ffd54f;
+  --text: #111827;
+}
+*{box-sizing:border-box}
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  margin: 20px;
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: center;
+}
+.container{
+  display:flex;
+  gap:24px;
+  align-items:flex-start;
+  max-width: 980px;
+  width: 100%;
+}
+.board-wrap{
+  background: var(--board-bg);
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(15,23,42,0.08);
+  flex: 0 0 auto;
+  position: relative;
+}
+.board{
+  width: var(--board-size);
+  height: var(--board-size);
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  gap: 0;
+  user-select: none;
+  touch-action: manipulation;
+}
+.hole{
+  width: 48px;
+  height: 48px;
+  background: var(--hole);
+  border-radius: 50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:auto;
+  box-shadow: inset 0 -3px 6px rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .08s ease;
+  position: relative;
+}
+.hole:hover{ transform: scale(1.04); }
+.cell{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.piece{
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(2,6,23,0.15);
+  transition: transform .18s ease, box-shadow .18s ease, opacity .22s ease;
+  display:inline-block;
+  opacity: 1;
+}
+.player1{ background: var(--p1); }
+.player2{ background: var(--p2); }
+.hidden{ opacity: 0; transform: scale(.7); pointer-events:none; }
+.selected{ outline: 3px solid rgba(255,213,79,0.9); box-shadow: 0 6px 20px rgba(0,0,0,0.12); transform: scale(1.06); }
+.valid-move{ box-shadow: 0 0 0 3px rgba(79,195,247,0.14); }
+.info{
+  max-width: 360px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  flex: 1 1 auto;
+}
+.card{
+  background:#fff;
+  padding:12px;
+  border-radius:10px;
+  box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+}
+h1{ margin:0; font-size:18px; }
+.status{ font-weight:600; font-size:15px; display:flex; gap:8px; align-items:center; }
+.small { font-size:13px; color:#374151; }
+.btn{
+  display:inline-block;
+  padding:8px 12px;
+  background:#111827;
+  color:#fff;
+  border-radius:8px;
+  cursor:pointer;
+  border: none;
+}
+.btn[disabled]{ opacity:.6; cursor: not-allowed; }
+.row{ display:flex; gap:8px; align-items:center; }
+.thinking{ animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse{
+  0%{ opacity: .7; }
+  50%{ opacity: 1; }
+  100%{ opacity: .7; }
+}
+.mode-badge{
+  display:inline-block;
+  padding:2px 6px;
+  border-radius:6px;
+  background:#e5e7eb;
+  color:#111827;
+  font-size:12px;
+  margin-left:8px;
+}
+.overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(17,24,39,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 20;
+}
+.modal{
+  background:#fff;
+  border-radius:12px;
+  padding:16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  width: min(460px, 92vw);
+}
+.modal h3{ margin: 0 0 10px; font-size: 18px; }
+.modal .option{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  padding:10px;
+  border:1px solid #e5e7eb;
+  border-radius:10px;
+  cursor:pointer;
+}
+.modal .option:hover{ background:#f9fafb; }
+.modal .option + .option{ margin-top:10px; }
+.modal hr{ border: none; border-top:1px solid #e5e7eb; margin:12px 0; }
+.badge{
+  display:inline-block;
+  padding:2px 6px;
+  font-size:12px;
+  border-radius:6px;
+  background:#eef2ff;
+  color:#111827;
+}
+.confetti-canvas{
+  position:absolute;
+  left:0; top:0; width:100%; height:100%;
+  pointer-events:none;
+  z-index: 10;
+  display:none;
+}
+.win-banner{
+  position:absolute;
+  left:50%; top:8px;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.9);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 700;
+  z-index: 11;
+  display:none;
+}
+@media (max-width:920px){
+  body{ flex-direction:column; align-items:center; }
+  .container{ flex-direction:column; align-items:center; gap:12px; }
+  :root{ --board-size: 360px; }
+  .hole{ width:40px; height:40px; }
+  .piece{ width:30px; height:30px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="board-wrap card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h1>Mühle</h1>
+      <div class="small">
+        <span id="modeLabel" class="mode-badge">Modus: —</span>
+        <span id="aiLabel" class="mode-badge" style="display:none">Schwierigkeit: —</span>
+      </div>
+    </div>
+
+    <div id="board" class="board" aria-label="Mühle Spielbrett" role="grid"></div>
+
+    <canvas id="confetti" class="confetti-canvas"></canvas>
+    <div id="winBanner" class="win-banner"></div>
+
+    <div style="display:flex;justify-content:space-between;margin-top:10px">
+      <button id="resetBtn" class="btn">Neu starten</button>
+      <div class="small" id="versionText">Version: —</div>
+    </div>
+  </div>
+
+  <div class="info">
+    <div class="card">
+      <div class="status" id="statusLine">Spieler <span id="currentPlayer" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--p1)"></span> am Zug</div>
+      <div class="small" id="phaseLine">Phase: Setzen</div>
+    </div>
+
+    <div class="card">
+      <div class="small">Steine noch zu setzen</div>
+      <div class="row">
+        <div style="display:flex;gap:14px;align-items:center">
+          <div style="display:flex;flex-direction:column;align-items:center">
+            <div style="width:18px;height:18px;border-radius:50%;background:var(--p1)"></div>
+            <div class="small" id="p1ToPlace">9</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center">
+            <div style="width:18px;height:18px;border-radius:50%;background:var(--p2)"></div>
+            <div class="small" id="p2ToPlace">9</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="small">Hinweise</div>
+      <ul class="small" style="margin-top:6px">
+        <li>Blau (Spieler 1) beginnt immer.</li>
+        <li>Einspieler: Orange ist die KI, denkt kurz und entfernt automatisch nach einer Mühle.</li>
+        <li>Zweispieler: Orange ist Spieler 2 (am selben iPad).</li>
+        <li>Mühle bilden: Danach einen gegnerischen Stein entfernen.</li>
+        <li>Bei 3 Steinen darf man springen.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="small">Modus- und Schwierigkeitswahl erscheint beim Neustart.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Start-Overlay -->
+<div id="modeOverlay" class="overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <h3>Wähle den Spielmodus</h3>
+    <div id="optSingle" class="option">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--p1)"></div>
+      <div class="small">Einspieler: Du (Blau) gegen KI (Orange)</div>
+    </div>
+    <div id="optTwo" class="option">
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--p1)"></div>
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--p2)"></div>
+      </div>
+      <div class="small">Zweispieler: Zwei Menschen am selben iPad</div>
+    </div>
+
+    <hr />
+
+    <div id="difficultyWrap" style="display:none">
+      <h3>Wähle die Schwierigkeit <span class="badge">(Einspielermodus)</span></h3>
+      <div id="optEasy" class="option">
+        <div class="small"><strong>Einfach</strong> — Zufällige Züge</div>
+      </div>
+      <div id="optMedium" class="option">
+        <div class="small"><strong>Mittel</strong> — Mühlen bilden & blocken</div>
+      </div>
+      <div id="optHard" class="option">
+        <div class="small"><strong>Schwierig</strong> — Kleine Vorausschau (Tiefe 2)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Basiskonstanten und Logik wie zuvor, ergänzt um Konfetti bei Sieg
+(function(){
+const POS = [
+  [0,0],[0,3],[0,6],
+  [1,1],[1,3],[1,5],
+  [2,2],[2,3],[2,4],
+  [3,0],[3,1],[3,2],[3,4],[3,5],[3,6],
+  [4,2],[4,3],[4,4],
+  [5,1],[5,3],[5,5],
+  [6,0],[6,3],[6,6]
+];
+const NEIGHBORS = {
+  0:[1,9], 1:[0,2,4], 2:[1,14],
+  3:[4,10], 4:[1,3,5,7], 5:[4,13],
+  6:[7,11], 7:[4,6,8], 8:[7,12],
+  9:[0,10,21],10:[3,9,11,18],11:[6,10,15],
+  12:[8,13,17],13:[5,12,14,20],14:[2,13,23],
+  15:[11,16],16:[15,17,19],17:[12,16],
+  18:[10,19],19:[16,18,20,22],20:[13,19],
+  21:[9,22],22:[21,23,19],23:[14,22]
+};
+const MILLS = [
+  [0,1,2],[3,4,5],[6,7,8],[15,16,17],[18,19,20],[21,22,23],
+  [0,9,21],[3,10,18],[6,11,15],[2,14,23],[5,13,20],[8,12,17],
+  [1,4,7],[16,19,22],[9,10,11],[12,13,14]
+];
+const P1 = "1";
+const P2 = "2";
+const THINK_DELAY = 180;
+const FADE_TIME = 260;
+
+const state = {
+  board: Array(24).fill(null),
+  toPlace: {"1":9, "2":9},
+  currentPlayer: P1,
+  phase: "placing",
+  selected: null,
+  mustRemove: null,
+  isAnimating: false,
+  inputLocked: false,
+  gameOver: false,
+  mode: null,          // "single" | "two"
+  aiEnabled: false,
+  aiLevel: "easy"
+};
+
+// DOM
+const boardEl = document.getElementById('board');
+const currentPlayerEl = document.getElementById('currentPlayer');
+const phaseLineEl = document.getElementById('phaseLine');
+const p1ToPlaceEl = document.getElementById('p1ToPlace');
+const p2ToPlaceEl = document.getElementById('p2ToPlace');
+const statusLine = document.getElementById('statusLine');
+const resetBtn = document.getElementById('resetBtn');
+const modeOverlay = document.getElementById('modeOverlay');
+const optSingle = document.getElementById('optSingle');
+const optTwo = document.getElementById('optTwo');
+const modeLabel = document.getElementById('modeLabel');
+const versionText = document.getElementById('versionText');
+const aiLabel = document.getElementById('aiLabel');
+const difficultyWrap = document.getElementById('difficultyWrap');
+const optEasy = document.getElementById('optEasy');
+const optMedium = document.getElementById('optMedium');
+const optHard = document.getElementById('optHard');
+const confettiCanvas = document.getElementById('confetti');
+const winBanner = document.getElementById('winBanner');
+
+// Board aufbauen
+function buildBoard(){
+  boardEl.innerHTML = "";
+  for(let r=0;r<7;r++){
+    for(let c=0;c<7;c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.r = r; cell.dataset.c = c;
+      const idx = POS.findIndex(p => p[0]===r && p[1]===c);
+      if(idx !== -1){
+        const hole = document.createElement('div');
+        hole.className = 'hole';
+        hole.dataset.index = idx;
+        hole.setAttribute('role','button');
+        hole.setAttribute('aria-label','Feld ' + idx);
+
+        hole.addEventListener('click', ()=> onHoleInteract(idx));
+        hole.addEventListener('touchstart', (e)=>{ e.preventDefault(); onHoleInteract(idx); }, {passive:false});
+
+        const piece = document.createElement('div');
+        piece.className = 'piece hidden';
+        piece.dataset.index = idx;
+        hole.appendChild(piece);
+        cell.appendChild(hole);
+      }
+      boardEl.appendChild(cell);
+    }
+  }
+  drawLines();
+  render();
+  sizeConfettiCanvas();
+}
+
+// Linien (SVG)
+function drawLines(){
+  const old = boardEl.querySelector('svg');
+  if(old) old.remove();
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS,'svg');
+  svg.setAttribute('width','100%');
+  svg.setAttribute('height','100%');
+  svg.setAttribute('style','position:absolute;left:0;top:0;pointer-events:none;');
+  const cellW = boardEl.clientWidth / 7;
+  const cellH = boardEl.clientHeight / 7;
+  const posToXY = (pos) => {
+    const [r,c] = POS[pos];
+    const x = c * cellW + cellW/2;
+    const y = r * cellH + cellH/2;
+    return [x,y];
+  };
+  const drawn = new Set();
+  for(const fromStr in NEIGHBORS){
+    const from = parseInt(fromStr,10);
+    const [x1,y1] = posToXY(from);
+    for(const to of NEIGHBORS[from]){
+      const key = [Math.min(from,to),Math.max(from,to)].join('-');
+      if(drawn.has(key)) continue;
+      drawn.add(key);
+      const [x2,y2] = posToXY(to);
+      const line = document.createElementNS(svgNS,'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      line.setAttribute('stroke', 'rgba(17,24,39,0.9)');
+      line.setAttribute('stroke-width', Math.max(2, Math.min(cellW,cellH)*0.03));
+      svg.appendChild(line);
+    }
+  }
+  boardEl.appendChild(svg);
+}
+
+function render(){
+  for(let i=0;i<24;i++){
+    const pieceEl = boardEl.querySelector('.piece[data-index="'+i+'"]');
+    const holeEl = boardEl.querySelector('.hole[data-index="'+i+'"]');
+    const owner = state.board[i];
+    if(owner === null){
+      pieceEl.className = 'piece hidden';
+      pieceEl.style.display = 'none';
+    } else {
+      pieceEl.className = 'piece ' + (owner === "1" ? 'player1' : 'player2');
+      pieceEl.style.display = 'inline-block';
+    }
+    if(holeEl){
+      holeEl.classList.remove('selected','valid-move');
+    }
+  }
+
+  if(!state.inputLocked && state.phase === 'moving' && !state.mustRemove){
+    const current = state.currentPlayer;
+    if(state.selected !== null){
+      const selHole = boardEl.querySelector('.hole[data-index="'+state.selected+'"]');
+      if(selHole) selHole.classList.add('selected');
+      const stones = countStones(current);
+      const canJump = (stones === 3);
+      const neighbors = canJump ? allEmptyIndices() : (NEIGHBORS[state.selected] || []).filter(i=> state.board[i]===null);
+      for(const n of neighbors){
+        const h = boardEl.querySelector('.hole[data-index="'+n+'"]');
+        if(h) h.classList.add('valid-move');
+      }
+    }
+  }
+
+  currentPlayerEl.style.background = state.currentPlayer === "1"
+    ? getComputedStyle(document.documentElement).getPropertyValue('--p1')
+    : getComputedStyle(document.documentElement).getPropertyValue('--p2');
+
+  if(state.mustRemove){
+    phaseLineEl.textContent = 'Mühle! Entferne einen Stein von Spieler ' + state.mustRemove + (state.aiEnabled && state.currentPlayer===P2 ? ' (KI wählt automatisch)' : '');
+  } else {
+    phaseLineEl.textContent = 'Phase: ' + (state.phase === 'placing' ? 'Setzen' : 'Bewegen');
+  }
+
+  p1ToPlaceEl.textContent = state.toPlace["1"];
+  p2ToPlaceEl.textContent = state.toPlace["2"];
+
+  if(state.mode === 'single'){
+    modeLabel.textContent = 'Modus: Einspieler';
+    aiLabel.style.display = 'inline-block';
+    aiLabel.textContent = 'Schwierigkeit: ' + (
+      state.aiLevel === 'easy' ? 'Einfach' :
+      state.aiLevel === 'medium' ? 'Mittel' : 'Schwierig'
+    );
+    versionText.textContent = 'Version: Mensch vs. KI';
+  } else if(state.mode === 'two'){
+    modeLabel.textContent = 'Modus: Zweispieler';
+    aiLabel.style.display = 'none';
+    versionText.textContent = 'Version: Mensch vs. Mensch';
+  } else {
+    modeLabel.textContent = 'Modus: —';
+    aiLabel.style.display = 'none';
+    versionText.textContent = 'Version: —';
+  }
+
+  const winner = checkWin();
+  statusLine.textContent = '';
+  if(winner){
+    const text = (winner==="1" ? "Blau hat gewonnen!" : "Orange hat gewonnen!");
+    statusLine.textContent = 'Spiel beendet — ' + text;
+    showWinCelebration(winner, text);
+  } else {
+    const span = document.createElement('span');
+    span.style.display='inline-block';
+    span.style.width='12px'; span.style.height='12px'; span.style.borderRadius='50%';
+    span.style.margin='0 6px';
+    span.style.background = state.currentPlayer === "1"
+      ? getComputedStyle(document.documentElement).getPropertyValue('--p1')
+      : getComputedStyle(document.documentElement).getPropertyValue('--p2');
+    statusLine.appendChild(document.createTextNode('Spieler '));
+    statusLine.appendChild(span);
+    statusLine.appendChild(document.createTextNode(' ist am Zug'));
+  }
+}
+
+// Interaktion
+function onHoleInteract(index){
+  if(state.gameOver || state.isAnimating || state.inputLocked) return;
+
+  if(state.mustRemove){
+    if(state.currentPlayer === P2 && state.aiEnabled){
+      return;
+    }
+    const opponent = state.mustRemove;
+    if(state.board[index] !== opponent) return;
+    if(!canRemoveAt(index, opponent)) return;
+    return animateRemove(index).then(()=>{
+      state.board[index] = null;
+      state.mustRemove = null;
+      nextTurn();
+      finalizeAndMaybeAI();
+    });
+  }
+
+  const player = state.currentPlayer;
+
+  if(state.phase === 'placing'){
+    if(state.board[index] !== null) return;
+    placeStone(player, index).then(()=>{
+      const formed = checkFormedMill(index, player);
+      if(formed){
+        state.mustRemove = other(player);
+        render();
+        return;
+      }
+      maybeSwitchToMoving();
+      nextTurn();
+      finalizeAndMaybeAI();
+    });
+    return;
+  }
+
+  if(state.phase === 'moving'){
+    const owner = state.board[index];
+    if(owner === player){
+      state.selected = index;
+      render();
+      return;
+    }
+    if(state.selected !== null && state.board[index] === null){
+      const stones = countStones(player);
+      const canJump = (stones === 3);
+      if(!canJump && !(NEIGHBORS[state.selected] || []).includes(index)){
+        return;
+      }
+      moveStoneAnimated(player, state.selected, index).then(()=>{
+        state.selected = null;
+        if(checkFormedMill(index, player)){
+          state.mustRemove = other(player);
+          render();
+          return;
+        }
+        nextTurn();
+        finalizeAndMaybeAI();
+      });
+    }
+  }
+}
+
+function nextTurn(){
+  state.currentPlayer = (state.currentPlayer === "1") ? "2" : "1";
+  state.selected = null;
+  render();
+}
+
+function maybeSwitchToMoving(){
+  if(state.toPlace["1"] === 0 && state.toPlace["2"] === 0){
+    state.phase = 'moving';
+  }
+}
+
+function placeStone(player, index){
+  state.board[index] = player;
+  state.toPlace[player]--;
+  return fadeInAt(index, player);
+}
+
+function finalizeAndMaybeAI(){
+  render();
+  const winner = checkWin();
+  if(winner){
+    state.gameOver = true;
+    render();
+    return;
+  }
+  if(state.aiEnabled && state.currentPlayer === P2){
+    aiTurn();
+  }
+}
+
+// KI-Zug (inkl. Eingabesperre bei KI-Mühle)
+function aiTurn(){
+  if(!state.aiEnabled) return;
+  if(state.gameOver) return;
+  if(state.currentPlayer !== P2) return;
+  if(state.isAnimating) return;
+
+  state.inputLocked = true;
+  state.isAnimating = true;
+  addThinking(true);
+  render();
+
+  setTimeout(async ()=>{
+    try{
+      if(state.mustRemove === P1){
+        const removable = removableIndices(P1);
+        if(removable.length > 0){
+          const idx = pickRemove(removable);
+          await animateRemove(idx);
+          state.board[idx] = null;
+          state.mustRemove = null;
+          nextTurn();
+          state.isAnimating = false; 
+          addThinking(false); 
+          state.inputLocked = false; 
+          render();
+          if(state.aiEnabled && state.currentPlayer === P2) aiTurn();
+          return;
+        } else {
+          state.mustRemove = null;
+        }
+      }
+
+      if(state.phase === 'placing' && state.toPlace[P2] > 0){
+        const move = pickPlaceMoveAI();
+        const pos = move?.index ?? randomChoice(emptyIndices());
+        await placeStone(P2, pos);
+        if(checkFormedMill(pos, P2)){
+          const removable = removableIndices(P1);
+          if(removable.length > 0){
+            const idx = pickRemove(removable);
+            await animateRemove(idx);
+            state.board[idx] = null;
+          }
+        }
+        maybeSwitchToMoving();
+        nextTurn();
+        state.isAnimating = false; 
+        addThinking(false);
+        state.inputLocked = false;
+        render();
+        if(state.aiEnabled && state.currentPlayer === P2) aiTurn();
+        return;
+      }
+
+      const mv = pickMoveAI();
+      if(!mv){
+        state.isAnimating = false; 
+        addThinking(false); 
+        state.inputLocked = false;
+        render(); 
+        return;
+      }
+      await moveStoneAnimated(P2, mv.from, mv.to);
+      if(checkFormedMill(mv.to, P2)){
+        const removable = removableIndices(P1);
+        if(removable.length > 0){
+          const idx = pickRemove(removable);
+          await animateRemove(idx);
+          state.board[idx] = null;
+        }
+      }
+      nextTurn();
+      state.isAnimating = false; 
+      addThinking(false);
+      state.inputLocked = false;
+      render();
+    } catch(e){
+      console.error(e);
+      state.isAnimating = false; 
+      addThinking(false);
+      state.inputLocked = false;
+      render();
+    }
+  }, THINK_DELAY);
+}
+
+// Regeln/Hilfen
+function other(p){ return p === "1" ? "2" : "1"; }
+function checkFormedMill(index, player){
+  for(const m of MILLS){
+    if(m.includes(index) && m.every(i => state.board[i] === player)) return true;
+  }
+  return false;
+}
+function isInMill(index, player){
+  for(const m of MILLS){
+    if(m.includes(index) && m.every(i => state.board[i] === player)) return true;
+  }
+  return false;
+}
+function canRemoveAt(index, opponent){
+  if(state.board[index] !== opponent) return false;
+  if(!isInMill(index, opponent)) return true;
+  for(let i=0;i<24;i++){
+    if(state.board[i] === opponent && !isInMill(i, opponent)) return false;
+  }
+  return true;
+}
+function countStones(player){
+  let n=0; for(let i=0;i<24;i++) if(state.board[i]===player) n++;
+  return n;
+}
+function emptyIndices(){
+  const arr=[]; for(let i=0;i<24;i++) if(state.board[i]===null) arr.push(i);
+  return arr;
+}
+function allEmptyIndices(){ return emptyIndices(); }
+function ownedIndices(player){
+  const arr=[]; for(let i=0;i<24;i++) if(state.board[i]===player) arr.push(i);
+  return arr;
+}
+function removableIndices(player){
+  const res=[];
+  for(let i=0;i<24;i++){
+    if(state.board[i]===player && !isInMill(i, player)) res.push(i);
+  }
+  if(res.length>0) return res;
+  for(let i=0;i<24;i++){
+    if(state.board[i]===player) res.push(i);
+  }
+  return res;
+}
+function checkWin(){
+  const p1 = countStones("1");
+  const p2 = countStones("2");
+  if(p1 < 3 && state.toPlace["1"] === 0) return "2";
+  if(p2 < 3 && state.toPlace["2"] === 0) return "1";
+  if(state.phase === 'moving'){
+    for(const p of ["1","2"]){
+      const stones = ownedIndices(p);
+      let movable = false;
+      const canJump = (stones.length === 3);
+      for(const s of stones){
+        if(canJump){
+          if(emptyIndices().length > 0){ movable = true; break; }
+        } else {
+          const neigh = NEIGHBORS[s] || [];
+          for(const n of neigh){
+            if(state.board[n] === null){ movable = true; break; }
+          }
+        }
+        if(movable) break;
+      }
+      if(!movable && state.toPlace[p] === 0){
+        return other(p);
+      }
+    }
+  }
+  return null;
+}
+
+// Animationen
+function fadeOutAt(index){
+  return new Promise((resolve)=>{
+    const pieceEl = boardEl.querySelector('.piece[data-index="'+index+'"]');
+    if(!pieceEl){ resolve(); return; }
+    pieceEl.style.transition = 'opacity '+FADE_TIME+'ms ease, transform '+FADE_TIME+'ms ease';
+    pieceEl.style.opacity = '0';
+    pieceEl.style.transform = 'scale(0.7)';
+    setTimeout(()=>{ pieceEl.style.display='none'; resolve(); }, FADE_TIME);
+  });
+}
+function fadeInAt(index, player){
+  return new Promise((resolve)=>{
+    const pieceEl = boardEl.querySelector('.piece[data-index="'+index+'"]');
+    if(!pieceEl){ resolve(); return; }
+    pieceEl.className = 'piece ' + (player === "1" ? 'player1' : 'player2');
+    pieceEl.style.display = 'inline-block';
+    pieceEl.style.transition = 'none';
+    pieceEl.style.opacity = '0';
+    pieceEl.style.transform = 'scale(0.7)';
+    void pieceEl.offsetWidth;
+    pieceEl.style.transition = 'opacity '+FADE_TIME+'ms ease, transform '+FADE_TIME+'ms ease';
+    pieceEl.style.opacity = '1';
+    pieceEl.style.transform = 'scale(1)';
+    setTimeout(()=> resolve(), FADE_TIME);
+  });
+}
+async function moveStoneAnimated(player, from, to){
+  if(state.board[from] !== player) return;
+  state.isAnimating = true;
+  await fadeOutAt(from);
+  state.board[from] = null;
+  state.board[to] = player;
+  await fadeInAt(to, player);
+  state.isAnimating = false;
+  render();
+}
+async function animateRemove(index){
+  state.isAnimating = true;
+  await fadeOutAt(index);
+  state.isAnimating = false;
+  render();
+}
+
+// Utils
+function randomChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function addThinking(on){ if(on){ statusLine.classList.add('thinking'); } else { statusLine.classList.remove('thinking'); } }
+
+// KI-Entfernen
+function pickRemove(removable){
+  const level = state.aiLevel;
+  if(level === 'easy'){
+    return randomChoice(removable);
+  }
+  let best = removable[0], bestScore = -1e9;
+  for(const idx of removable){
+    const score = (NEIGHBORS[idx]?.filter(n=>state.board[n]===null).length || 0)
+                  + (isInMill(idx, P1) ? -2 : 2);
+    if(score > bestScore){ bestScore = score; best = idx; }
+  }
+  return best;
+}
+
+// KI Züge
+function generatePlaceMoves(player, board, toPlace){
+  if(toPlace[player] <= 0) return [];
+  const moves = [];
+  for(let i=0;i<24;i++){
+    if(board[i]===null){
+      moves.push({type:'place', index:i, player});
+    }
+  }
+  return moves;
+}
+function generateMoveMoves(player, board){
+  const stones = [];
+  for(let i=0;i<24;i++) if(board[i]===player) stones.push(i);
+  const canJump = (stones.length === 3);
+  const moves = [];
+  if(canJump){
+    const empties = [];
+    for(let i=0;i<24;i++) if(board[i]===null) empties.push(i);
+    for(const from of stones){
+      for(const to of empties){
+        if(to!==from) moves.push({type:'move', from, to, player});
+      }
+    }
+  } else {
+    for(const from of stones){
+      for(const n of (NEIGHBORS[from]||[])){
+        if(board[n]===null) moves.push({type:'move', from, to:n, player});
+      }
+    }
+  }
+  return moves;
+}
+function evaluateBoard(board, toPlace, phase){
+  const p2 = countGeneric(board, P2);
+  const p1 = countGeneric(board, P1);
+  const openTwoP2 = countOpenTwos(board, P2);
+  const openTwoP1 = countOpenTwos(board, P1);
+  const millsP2 = countMills(board, P2);
+  const millsP1 = countMills(board, P1);
+  const mobilityP2 = mobility(board, P2);
+  const mobilityP1 = mobility(board, P1);
+
+  let score = 0;
+  score += (p2 - p1)*12;
+  score += (millsP2 - millsP1)*15;
+  score += (openTwoP2 - openTwoP1)*6;
+  if(phase === 'moving'){
+    score += (mobilityP2 - mobilityP1)*2;
+  }
+  return score;
+}
+function countGeneric(board, p){ let n=0; for(let i=0;i<24;i++) if(board[i]===p) n++; return n; }
+function countMills(board, p){
+  let n=0; for(const m of MILLS){ if(m.every(i=>board[i]===p)) n++; } return n;
+}
+function countOpenTwos(board, p){
+  let n=0;
+  for(const m of MILLS){
+    const owned = m.filter(i=>board[i]===p).length;
+    const empty = m.filter(i=>board[i]===null).length;
+    if(owned===2 && empty===1) n++;
+  }
+  return n;
+}
+function mobility(board, p){
+  const stones = []; for(let i=0;i<24;i++) if(board[i]===p) stones.push(i);
+  if(stones.length === 3){
+    let empties=0; for(let i=0;i<24;i++) if(board[i]===null) empties++;
+    return empties * 3;
+  }
+  let moves=0;
+  for(const s of stones){
+    for(const n of (NEIGHBORS[s]||[])){
+      if(board[n]===null) moves++;
+    }
+  }
+  return moves;
+}
+function spotCentrality(index){ return (NEIGHBORS[index]?.length || 0) * 0.8; }
+function adjacencyValue(index){ return (NEIGHBORS[index]?.length || 0) * 0.5; }
+function formsMillAfterPlace(player, index){
+  if(state.board[index]!==null) return false;
+  const board2 = state.board.slice();
+  board2[index] = player;
+  for(const m of MILLS){
+    if(m.every(i=>board2[i]===player)) return true;
+  }
+  return false;
+}
+function formsMillAfterMove(player, from, to){
+  const board2 = state.board.slice();
+  board2[from]=null; board2[to]=player;
+  for(const m of MILLS){
+    if(m.every(i=>board2[i]===player)) return true;
+  }
+  return false;
+}
+function blocksOpponentMill(from, to){
+  const board2 = state.board.slice();
+  board2[from]=null; board2[to]=P2;
+  for(let i=0;i<24;i++){
+    if(board2[i]===null){
+      for(const m of MILLS){
+        if(m.includes(i)){
+          const ownedByP1 = m.filter(x=>board2[x]===P1).length;
+          const empties = m.filter(x=>board2[x]===null).length;
+          if(ownedByP1===2 && empties===1){
+            if(i===to) return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+function minimaxPlaceDepth2(){
+  let bestIndex = null;
+  let bestScore = -1e9;
+
+  for(const i of emptyIndices()){
+    const boardA = state.board.slice();
+    boardA[i] = P2;
+    let toPlaceA = {...state.toPlace};
+    toPlaceA[P2] = toPlaceA[P2]-1;
+
+    let boardAfter = boardA, toPlaceAfter = toPlaceA;
+    if(isMillOnBoard(boardA, i, P2)){
+      const rems = removableOnBoard(boardA, P1);
+      if(rems.length>0){
+        let bestRem=null, bestRemScore=-1e9;
+        for(const r of rems){
+          const tb = boardA.slice(); tb[r]=null;
+          const sc = evaluateBoard(tb, toPlaceA, phaseAfterPlace(toPlaceA));
+          if(sc>bestRemScore){ bestRemScore=sc; bestRem=r; }
+        }
+        const tb = boardA.slice(); tb[bestRem]=null;
+        boardAfter = tb;
+      }
+    }
+
+    const phaseAfter = phaseAfterPlace(toPlaceAfter);
+    const oppMoves = generatePlaceMovesBoard(P1, boardAfter, toPlaceAfter);
+    let worstReply = +1e9;
+
+    if(oppMoves.length===0){
+      const sc = evaluateBoard(boardAfter, toPlaceAfter, phaseAfter);
+      if(sc>bestScore){ bestScore=sc; bestIndex=i; }
+      continue;
+    }
+
+    for(const mv of oppMoves){
+      const b2 = boardAfter.slice();
+      b2[mv.index] = P1;
+      let tp2 = {...toPlaceAfter}; tp2[P1]=tp2[P1]-1;
+      if(isMillOnBoard(b2, mv.index, P1)){
+        const remsOpp = removableOnBoard(b2, P2);
+        if(remsOpp.length>0){
+          let worst=null, worstSc=+1e9;
+          for(const r of remsOpp){
+            const tb = b2.slice(); tb[r]=null;
+            const sc = evaluateBoard(tb, tp2, phaseAfterPlace(tp2));
+            if(sc<worstSc){ worstSc=sc; worst=r; }
+          }
+          b2[worst]=null;
+        }
+      }
+      const sc2 = evaluateBoard(b2, tp2, phaseAfterPlace(tp2));
+      if(sc2 < worstReply) worstReply = sc2;
+    }
+
+    if(worstReply > bestScore){
+      bestScore = worstReply;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+function minimaxMoveDepth2(){
+  const moves = generateMoveMoves(P2, state.board);
+  if(moves.length===0) return null;
+  let bestMove=null, bestScore=-1e9;
+
+  for(const m of moves){
+    let bA = state.board.slice();
+    bA[m.from]=null; bA[m.to]=P2;
+
+    if(isMillOnBoard(bA, m.to, P2)){
+      const rems = removableOnBoard(bA, P1);
+      if(rems.length>0){
+        let bestRem=null, bestRemSc=-1e9;
+        for(const r of rems){
+          const tb=bA.slice(); tb[r]=null;
+          const sc = evaluateBoard(tb, state.toPlace, 'moving');
+          if(sc>bestRemSc){bestRemSc=sc; bestRem=r;}
+        }
+        bA = bA.slice(); bA[bestRem]=null;
+      }
+    }
+
+    const oppMoves = generateMoveMovesBoard(P1, bA);
+    if(oppMoves.length===0){
+      const scWin = evaluateBoard(bA, state.toPlace, 'moving') + 50;
+      if(scWin>bestScore){ bestScore=scWin; bestMove=m; }
+      continue;
+    }
+    let worstReply = +1e9;
+    for(const om of oppMoves){
+      let bB = bA.slice();
+      bB[om.from]=null; bB[om.to]=P1;
+      if(isMillOnBoard(bB, om.to, P1)){
+        const remsOpp = removableOnBoard(bB, P2);
+        if(remsOpp.length>0){
+          let worst=null, worstSc=+1e9;
+          for(const r of remsOpp){
+            const tb=bB.slice(); tb[r]=null;
+            const sc=evaluateBoard(tb, state.toPlace, 'moving');
+            if(sc<worstSc){ worstSc=sc; worst=r; }
+          }
+          bB=bB.slice(); bB[worst]=null;
+        }
+      }
+      const sc2 = evaluateBoard(bB, state.toPlace, 'moving');
+      if(sc2<worstReply) worstReply=sc2;
+    }
+    if(worstReply>bestScore){
+      bestScore=worstReply; bestMove=m;
+    }
+  }
+  return bestMove;
+}
+function isMillOnBoard(board, index, player){
+  for(const m of MILLS){
+    if(m.includes(index) && m.every(i=>board[i]===player)) return true;
+  }
+  return false;
+}
+function removableOnBoard(board, player){
+  const res=[];
+  for(let i=0;i<24;i++){
+    if(board[i]===player && !isInMillBoard(board, i, player)) res.push(i);
+  }
+  if(res.length>0) return res;
+  for(let i=0;i<24;i++){
+    if(board[i]===player) res.push(i);
+  }
+  return res;
+}
+function isInMillBoard(board, index, player){
+  for(const m of MILLS){
+    if(m.includes(index) && m.every(i=>board[i]===player)) return true;
+  }
+  return false;
+}
+function phaseAfterPlace(toPlaceObj){
+  return (toPlaceObj["1"]===0 && toPlaceObj["2"]===0) ? 'moving' : 'placing';
+}
+function generatePlaceMovesBoard(player, board, toPlaceObj){
+  if(toPlaceObj[player]<=0) return [];
+  const res=[];
+  for(let i=0;i<24;i++) if(board[i]===null) res.push({type:'place', index:i, player});
+  return res;
+}
+function generateMoveMovesBoard(player, board){
+  const stones=[]; for(let i=0;i<24;i++) if(board[i]===player) stones.push(i);
+  const canJump = (stones.length===3);
+  const res=[];
+  if(canJump){
+    const empties=[]; for(let i=0;i<24;i++) if(board[i]===null) empties.push(i);
+    for(const from of stones){
+      for(const to of empties){
+        if(to!==from) res.push({type:'move', from, to, player});
+      }
+    }
+  } else {
+    for(const from of stones){
+      for(const n of (NEIGHBORS[from]||[])){
+        if(board[n]===null) res.push({type:'move', from, to:n, player});
+      }
+    }
+  }
+  return res;
+}
+
+// Konfetti-System
+let confettiRunning = false;
+let confettiParticles = [];
+let confettiRAF = 0;
+
+function sizeConfettiCanvas(){
+  const rect = boardEl.getBoundingClientRect();
+  confettiCanvas.width = boardEl.clientWidth;
+  confettiCanvas.height = boardEl.clientHeight;
+}
+function startConfetti(colorSet){
+  sizeConfettiCanvas();
+  confettiParticles = createConfetti(colorSet);
+  confettiRunning = true;
+  confettiCanvas.style.display = 'block';
+  animateConfetti();
+}
+function stopConfetti(){
+  confettiRunning = false;
+  confettiParticles = [];
+  confettiCanvas.style.display = 'none';
+  if(confettiRAF) cancelAnimationFrame(confettiRAF);
+}
+function createConfetti(colors){
+  const count = 160; // angenehm für iPad
+  const parts = [];
+  for(let i=0;i<count;i++){
+    parts.push({
+      x: Math.random()*confettiCanvas.width,
+      y: -Math.random()*confettiCanvas.height*0.5,
+      w: 6 + Math.random()*6,
+      h: 10 + Math.random()*8,
+      vx: -0.8 + Math.random()*1.6,
+      vy: 1 + Math.random()*2.2,
+      rot: Math.random()*360,
+      vrot: -6 + Math.random()*12,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      shape: Math.random() < 0.6 ? 'rect' : 'circle',
+      alpha: 0.85 + Math.random()*0.15
+    });
+  }
+  return parts;
+}
+function animateConfetti(){
+  const ctx = confettiCanvas.getContext('2d');
+  const w = confettiCanvas.width;
+  const h = confettiCanvas.height;
+
+  function step(){
+    if(!confettiRunning) return;
+    ctx.clearRect(0,0,w,h);
+    for(const p of confettiParticles){
+      p.vy += 0.02; // leichte Beschleunigung
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vrot;
+      if(p.y > h + 20){
+        // recycle
+        p.x = Math.random()*w;
+        p.y = -20;
+        p.vx = -0.8 + Math.random()*1.6;
+        p.vy = 1 + Math.random()*2.2;
+      }
+      ctx.globalAlpha = p.alpha;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI/180);
+      ctx.fillStyle = p.color;
+      if(p.shape==='rect'){
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w*0.6, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+    confettiRAF = requestAnimationFrame(step);
+  }
+  confettiRAF = requestAnimationFrame(step);
+}
+function showWinCelebration(winner, text){
+  if(!state.gameOver){
+    // setze Spielende sicher, damit keine Interaktion mehr passiert
+    state.gameOver = true;
+  }
+  // Banner
+  winBanner.textContent = text;
+  winBanner.style.display = 'block';
+  // Farben passend:
+  const colors = winner==="1"
+    ? ['#1f77b4','#6ec6ff','#bbdefb','#90caf9']
+    : ['#ff7f0e','#ffd180','#ffcc80','#ffb74d'];
+  startConfetti(colors);
+}
+
+// Board-Resizing
+const ro = new ResizeObserver(()=> { drawLines(); sizeConfettiCanvas(); });
+ro.observe(boardEl);
+
+// MutationObserver bleibt wie ist
+const observer = new MutationObserver(()=>{
+  const winner = checkWin();
+  if(winner){ state.gameOver = true; }
+});
+observer.observe(boardEl, {subtree:true, childList:true, attributes:true});
+
+// Reset/Overlay/Modus
+resetBtn.addEventListener('click', ()=> resetGame(false));
+
+function resetGame(keepModeChoice){
+  state.board = Array(24).fill(null);
+  state.toPlace = {"1":9,"2":9};
+  state.currentPlayer = P1;
+  state.phase = 'placing';
+  state.selected = null;
+  state.mustRemove = null;
+  state.gameOver = false;
+  state.isAnimating = false;
+  state.inputLocked = false;
+
+  stopConfetti();
+  winBanner.style.display = 'none';
+
+  if(!keepModeChoice){
+    state.mode = null;
+    state.aiEnabled = false;
+    state.aiLevel = 'easy';
+    showModeOverlay(true);
+    showDifficulty(false);
+  } else {
+    render();
+    if(state.aiEnabled && state.currentPlayer === P2) aiTurn();
+  }
+}
+
+function showModeOverlay(show){
+  modeOverlay.style.display = show ? 'flex' : 'none';
+}
+function showDifficulty(show){
+  difficultyWrap.style.display = show ? 'block' : 'none';
+}
+
+// Modusauswahl
+optSingle.addEventListener('click', ()=>{
+  state.mode = 'single';
+  state.aiEnabled = true;
+  showDifficulty(true);
+});
+optTwo.addEventListener('click', ()=>{
+  state.mode = 'two';
+  state.aiEnabled = false;
+  state.aiLevel = 'easy';
+  showModeOverlay(false);
+  render();
+});
+optEasy.addEventListener('click', ()=>{
+  state.aiLevel = 'easy';
+  showModeOverlay(false);
+  render();
+});
+optMedium.addEventListener('click', ()=>{
+  state.aiLevel = 'medium';
+  showModeOverlay(false);
+  render();
+});
+optHard.addEventListener('click', ()=>{
+  state.aiLevel = 'hard';
+  showModeOverlay(false);
+  render();
+});
+
+// Start
+buildBoard();
+render();
+showModeOverlay(true);
+showDifficulty(false);
+
+// --- KI Strategien (wie zuvor) ---
+function pickPlaceMoveAI(){
+  const level = state.aiLevel;
+  const empties = emptyIndices();
+
+  if(level === 'easy'){
+    return { type:'place', index: randomChoice(empties) };
+  }
+
+  if(level === 'medium'){
+    for(const i of empties){
+      if(formsMillAfterPlace(P2, i)) return {type:'place', index:i};
+    }
+    for(const i of empties){
+      const block = wouldBlockOpenTwo(P1, i);
+      if(block) return {type:'place', index:i};
+    }
+    let best = empties[0], bestScore=-1e9;
+    for(const i of empties){
+      const sc = spotCentrality(i) + adjacencyValue(i);
+      if(sc>bestScore){ bestScore=sc; best=i; }
+    }
+    return {type:'place', index: best};
+  }
+
+  const idx = minimaxPlaceDepth2();
+  if(idx !== null && idx !== undefined) return {type:'place', index: idx};
+  return { type:'place', index: randomChoice(empties) };
+}
+
+function wouldBlockOpenTwo(player, putIndex){
+  const tmp = state.board.slice();
+  tmp[putIndex] = P2;
+  for(const m of MILLS){
+    const ownedByOpp = m.filter(i=>tmp[i]===player).length;
+    const empties = m.filter(i=>tmp[i]===null).length;
+    if(ownedByOpp===2 && empties===1){
+      continue;
+    }
+  }
+  for(const m of MILLS){
+    const oppOwned = m.filter(i=>state.board[i]===player).length;
+    const empties = m.filter(i=>state.board[i]===null).length;
+    if(oppOwned===2 && empties===1 && m.includes(putIndex)){
+      return true;
+    }
+  }
+  return false;
+}
+
+function pickMoveAI(){
+  const level = state.aiLevel;
+
+  if(level === 'easy'){
+    const moves = generateMoveMoves(P2, state.board);
+    if(moves.length===0) return null;
+    return randomChoice(moves);
+  }
+
+  if(level === 'medium'){
+    const moves = generateMoveMoves(P2, state.board);
+    let immediate = moves.find(m=>formsMillAfterMove(P2, m.from, m.to));
+    if(immediate) return immediate;
+
+    let blocker = null, blockerScore=-1e9;
+    for(const m of moves){
+      const sc = blocksOpponentMill(m.from, m.to) ? 10 : 0;
+      if(sc>blockerScore){ blockerScore=sc; blocker=m; }
+    }
+    if(blockerScore>0) return blocker;
+
+    let best=null, bestScore=-1e9;
+    for(const m of moves){
+      const sc = adjacencyValue(m.to) + spotCentrality(m.to);
+      if(sc>bestScore){ bestScore=sc; best=m; }
+    }
+    return best || randomChoice(moves);
+  }
+
+  return minimaxMoveDepth2();
+}
+
+})();
+</script>
+</body>
+</html>

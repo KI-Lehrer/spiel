@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Runner mit treuem Hund</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#0b0f1a; color:#e9eef5; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; overflow:hidden; }
+  #gameContainer { position:relative; width:100vw; height:100vh; touch-action:none; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; }
+
+  .ui { position:absolute; left:0; right:0; top:0; display:flex; justify-content:space-between; gap:8px; padding:10px 14px; pointer-events:none; }
+  .panel { background: rgba(14,18,28,0.7); border:1px solid rgba(160,190,255,0.28); border-radius:10px; padding:6px 10px; pointer-events:auto; }
+
+  .buttons { position:absolute; left:0; right:0; bottom:0; display:flex; justify-content:space-between; gap:18px; padding:18px 18px calc(env(safe-area-inset-bottom) + 18px); }
+  .btn { flex:1; min-width:36vw; height:16vh; max-height:140px; background: linear-gradient(180deg, rgba(24,28,40,0.9), rgba(14,16,24,0.95)); border:2px solid rgba(140,170,255,0.35); border-radius:18px; color:#eaf2ff; font-size:clamp(18px,5vw,28px); display:flex; align-items:center; justify-content:center; user-select:none; cursor:pointer; }
+  .btn:active, .btn.active { transform: translateY(2px); border-color: rgba(140,170,255,0.6); }
+
+  .screen { position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background: linear-gradient(160deg, rgba(10,12,18,0.94), rgba(2,3,6,0.96)); text-align:center; padding:4vh 4vw; z-index:10; }
+  .screen.show { display:flex; }
+  .title { font-size: clamp(26px, 6vw, 56px); font-weight: 800; color: #a9cfff; margin-bottom: 0.6rem; }
+  .subtitle { color: #cfe0ff; margin-bottom: 1rem; font-size: clamp(14px, 2.6vw, 20px); }
+  button.primary { margin-top: 18px; padding: 14px 32px; border-radius: 12px; background: rgba(18,24,36,0.9); color: #eef6ff; border: 1px solid rgba(140,170,255,0.4); font-weight: 700; font-size: clamp(16px,3vw,22px); cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <canvas id="game"></canvas>
+
+  <div class="ui">
+    <div class="panel" id="scorePanel">Distanz: 0 m</div>
+    <div class="panel" id="livesPanel">♥♥♥</div>
+    <div class="panel" id="levelPanel">Level 1</div>
+  </div>
+
+  <div class="buttons">
+    <div class="btn" id="btnRun">Vorwärts</div>
+    <div class="btn" id="btnJump">Sprung</div>
+  </div>
+
+  <div class="screen show" id="startScreen">
+    <div class="title">Runner mit treuem Hund</div>
+    <div class="subtitle">Tippe „Spiel starten“ oder einmal auf die Spielfläche.</div>
+    <button class="primary" id="startBtn">Spiel starten</button>
+  </div>
+
+  <div class="screen" id="betweenScreen">
+    <div class="title" id="lvlTitle">Level</div>
+    <div class="subtitle" id="lvlSub">Bereit für den nächsten Abschnitt?</div>
+    <button class="primary" id="lvlBtn">Weiter</button>
+  </div>
+
+  <div class="screen" id="overScreen">
+    <div class="title">Weiter versuchen</div>
+    <div class="subtitle" id="overReason">Kurze Pause.</div>
+    <button class="primary" id="restartBtn">Nochmal</button>
+  </div>
+
+  <div class="screen" id="winScreen">
+    <div class="title">Geschafft!</div>
+    <div class="subtitle">Alle Level gemeistert – stark!</div>
+    <button class="primary" id="againBtn">Erneut spielen</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const container = document.getElementById('gameContainer');
+
+  function resize(){ canvas.width = container.clientWidth; canvas.height = container.clientHeight; }
+  window.addEventListener('resize', resize, {passive:true}); resize();
+
+  // HUD
+  const scorePanel = document.getElementById('scorePanel');
+  const livesPanel = document.getElementById('livesPanel');
+  const levelPanel = document.getElementById('levelPanel');
+  const startScreen = document.getElementById('startScreen');
+  const betweenScreen = document.getElementById('betweenScreen');
+  const overScreen = document.getElementById('overScreen');
+  const winScreen = document.getElementById('winScreen');
+  const lvlTitle = document.getElementById('lvlTitle');
+  const lvlSub = document.getElementById('lvlSub');
+  const startBtn = document.getElementById('startBtn');
+  const lvlBtn = document.getElementById('lvlBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const againBtn = document.getElementById('againBtn');
+
+  // Buttons
+  const btnRun = document.getElementById('btnRun');
+  const btnJump = document.getElementById('btnJump');
+
+  // States
+  const State = { START:0, RUN:1, BETWEEN:2, OVER:3, WIN:4 };
+  let state = State.START;
+
+  // World
+  const GRAVITY = 2400;
+  const cam = { x: 0 };
+  let platforms = [];
+
+  // Input
+  const moves = { run: false };
+
+  // Entities
+  function makeEntity(w,h){ return { x:0, yTop:0, w, h, vx:0, vy:0, onGround:false }; }
+
+  const player = makeEntity(46,78);
+  player.runBase = 110;
+  player.runMaxBoost = 40;
+  player.jump = 880;
+
+  const dog = makeEntity(84,56);
+
+  // Farben Spieler
+  const ORANGE = '#F39C12';
+  const ORANGE_D = '#D98209';
+  const BLACK = '#000000';
+
+  // Farben Hund
+  const DOG_BODY = '#b5bbc2';
+  const DOG_LEG = '#3a3a3a';
+  const DOG_BELLY = '#d6dbe1';
+  const DOG_EAR = '#2b2b2b';
+  const DOG_NOSE = '#111111';
+  const DOG_OUTLINE = '#1a1a1a';
+
+  // Dach-Konturen
+  const ROOF_BORDER = '#3aa0ff';
+  const ROOF_GLOW = '#76c3ff';
+
+  // Level-Konfiguration
+  const levelCfg = {
+    1: { name:'Level 1', length:520, dogBase: 250, gapMin:70, gapMax:110, roofMin:170, roofMax:230, heightVar:80 },
+    2: { name:'Level 2', length:760, dogBase: 270, gapMin:80, gapMax:130, roofMin:140, roofMax:200, heightVar:110 },
+    3: { name:'Level 3', length:980, dogBase: 290, gapMin:90, gapMax:145, roofMin:120, roofMax:180, heightVar:140 }
+  };
+
+  let level = 1, forthcoming = 2;
+  let lives = 3;
+  let distance = 0;
+  let invincible = 0;
+
+  // Abstand Hund
+  const DOG_TARGET_BEHIND = 240;   // Zielabstand hinter dem Spieler
+  const DOG_MAX_DISTANCE  = 400;   // maximaler Abstand erlaubt
+
+  // Helpers
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const rand = (a,b)=>Math.random()*(b-a)+a;
+
+  // Plattformen
+  function makeRoof(x,yTop,w){ return { x, yTop, w, h:24 }; }
+  function buildLevel(lv){
+    platforms.length = 0;
+    const H = canvas.height;
+    const baseY = H*0.68;
+    const cfg = levelCfg[lv];
+
+    // Startdach
+    platforms.push(makeRoof(0, baseY, 2200));
+
+    let x = 2200;
+    const endX = cfg.length * 115 + 1400;
+    while(x < endX){
+      const gap = rand(cfg.gapMin, cfg.gapMax);
+      x += gap;
+      const w = rand(cfg.roofMin, cfg.roofMax);
+      let y = baseY + (Math.random()*cfg.heightVar - cfg.heightVar/2);
+      y = clamp(y, H*0.28, H*0.84);
+      platforms.push(makeRoof(x, y, w));
+      x += w;
+    }
+    // Ziel-Dach
+    platforms.push(makeRoof(x+160, baseY, 2200));
+  }
+
+  // Eingaben
+  window.addEventListener('keydown', e=>{
+    if(e.code==='ArrowRight'||e.code==='KeyD') moves.run = true;
+    if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'){ e.preventDefault(); tryJump(); }
+    if(state===State.START && (e.code==='Space'||e.code==='Enter')) startLevel(1);
+  });
+  window.addEventListener('keyup', e=>{
+    if(e.code==='ArrowRight'||e.code==='KeyD') moves.run = false;
+  });
+
+  bindButton(btnRun, ()=>{ moves.run = true; }, ()=>{ moves.run = false; });
+  bindButton(btnJump, ()=>{ tryJump(); }, null);
+
+  function bindButton(el, onDown, onUp){
+    const dn = ev=>{ ev.preventDefault(); el.classList.add('active'); onDown(); };
+    const up = ev=>{ ev.preventDefault(); el.classList.remove('active'); if(onUp) onUp(); };
+    el.addEventListener('touchstart', dn, {passive:false});
+    el.addEventListener('touchend', up, {passive:false});
+    el.addEventListener('touchcancel', up, {passive:false});
+    el.addEventListener('mousedown', dn);
+    el.addEventListener('mouseup', up);
+    el.addEventListener('mouseleave', up);
+  }
+
+  function tryJump(){
+    if(player.onGround){
+      player.vy = -player.jump;
+      player.onGround = false;
+    }
+  }
+
+  // Kollisionen
+  function overlapsHoriz(entityX, entityW, roofX, roofW){
+    const half = entityW/2;
+    return (entityX + half > roofX) && (entityX - half < roofX + roofW);
+  }
+
+  function landOnRoof(roofTop, entity){
+    entity.yTop = roofTop - entity.h;
+    entity.vy = 0;
+    entity.onGround = true;
+  }
+
+  function applyHorizontal(entity, dt){
+    entity.x += entity.vx * dt;
+  }
+
+  function applyVertical(entity, dt){
+    let remaining = entity.vy * dt;
+    const maxStep = 6;
+    const eps = 1e-4;
+
+    while(Math.abs(remaining) > eps){
+      const step = Math.abs(remaining) > maxStep ? Math.sign(remaining)*maxStep : remaining;
+      const newTop = entity.yTop + step;
+      const newBottom = newTop + entity.h;
+
+      if(step >= 0){
+        let bestSnapTop = null;
+        let bestRoofTop = null;
+
+        for(const r of platforms){
+          if(!overlapsHoriz(entity.x, entity.w, r.x, r.w)) continue;
+          const roofTop = r.yTop;
+          const wasAbove = (entity.yTop + entity.h) <= roofTop + 0.5;
+          const crosses = newBottom >= roofTop - 0.5;
+          if(wasAbove && crosses){
+            const snapTop = roofTop - entity.h;
+            if(bestSnapTop === null || snapTop < bestSnapTop){
+              bestSnapTop = snapTop;
+              bestRoofTop = roofTop;
+            }
+          }
+        }
+
+        if(bestSnapTop !== null){
+          landOnRoof(bestRoofTop, entity);
+          return;
+        } else {
+          entity.yTop = newTop;
+          entity.onGround = false;
+        }
+      } else {
+        entity.yTop = newTop;
+        entity.onGround = false;
+      }
+
+      remaining -= step;
+    }
+  }
+
+  // Hilfen für den Hund
+  function groundUnderEntity(entity){
+    const marginX = entity.w * 0.4;
+    const left = entity.x - marginX;
+    const right = entity.x + marginX;
+    const bottom = entity.yTop + entity.h + 2;
+    for(const r of platforms){
+      if(r.x <= right && (r.x + r.w) >= left){
+        if(bottom <= r.yTop + 2 && bottom >= r.yTop - 40){
+          return r;
+        }
+      }
+    }
+    return null;
+  }
+
+  function findSafeRoofBehindPlayer(px){
+    // Suche das nächste Dach hinter dem Spieler (nah, aber hinter ihm)
+    let best = null;
+    let bestDx = Infinity;
+    for(const r of platforms){
+      const center = r.x + r.w * 0.6;
+      const dxBack = (px - 200) - center;
+      if(dxBack >= 0 && dxBack < bestDx){
+        bestDx = dxBack;
+        best = r;
+      }
+    }
+    if(!best) best = platforms[0];
+    return best;
+  }
+
+  function snapDogToSafeRoof(){
+    const safe = findSafeRoofBehindPlayer(player.x);
+    dog.x = Math.min(safe.x + safe.w - 80, player.x - DOG_TARGET_BEHIND);
+    dog.yTop = safe.yTop - dog.h;
+    dog.vx = 0;
+    dog.vy = 0;
+    dog.onGround = true;
+  }
+
+  // Lückenerkennung (robuster, einfach)
+  function gapAhead(entity, look = 30){
+    const aheadLeft = entity.x - entity.w/2 + look;
+    const aheadRight = entity.x + entity.w/2 + look;
+    const footY = entity.yTop + entity.h + 2;
+
+    let hasGround = false;
+    for(const r of platforms){
+      if(r.x <= aheadRight && (r.x + r.w) >= aheadLeft){
+        if(Math.abs(footY - r.yTop) <= 44){ hasGround = true; break; }
+      }
+    }
+    return !hasGround; // true = Lücke
+  }
+
+  // Hund-Logik stabil
+  function updateDog(dt){
+    const cfg = levelCfg[level];
+
+    // Soll-Position: immer hinter dem Spieler
+    const desiredX = Math.min(player.x - 10, player.x - DOG_TARGET_BEHIND); // niemals vor den Spieler
+    const dx = desiredX - dog.x;
+
+    // Sanfte Annäherung: P-Kontrolle
+    const baseSpeed = cfg.dogBase;
+    const far = Math.abs(player.x - dog.x) > DOG_MAX_DISTANCE * 0.7;
+    const maxSpeed = baseSpeed + (far ? 120 : 0); // leichter Boost wenn zu weit weg
+    const desiredVx = clamp(dx * 4, -maxSpeed, maxSpeed);
+
+    // Wenn Hund zu nah an der X-Position des Spielers wäre, bremse stark
+    if(dog.x > player.x - 20){
+      dog.vx += ((player.x - 20 - dog.x) * 8 - dog.vx) * 6 * dt;
+    } else {
+      dog.vx += (desiredVx - dog.vx) * 4 * dt;
+    }
+
+    // Lücke? Dann springen (nur wenn auf dem Boden)
+    if(dog.onGround && gapAhead(dog, Math.max(30, Math.abs(dog.vx)*0.15 + 20))){
+      dog.vy = -700;
+      dog.onGround = false;
+    }
+
+    // Sicherheitsnetz gegen Fallen
+    const hasGround = groundUnderEntity(dog);
+    if(!hasGround && dog.yTop > (canvas.height * 0.82)){
+      snapDogToSafeRoof();
+    }
+    if(dog.yTop > canvas.height + 40){
+      snapDogToSafeRoof();
+    }
+
+    // Harte Abstandsklemme: maximal 400 Pixel hinter dir
+    const dist = player.x - dog.x; // positiv, wenn Hund hinter dir
+    if(dist > DOG_MAX_DISTANCE + 30){
+      dog.x = player.x - DOG_MAX_DISTANCE;
+      dog.vx = Math.min(dog.vx, levelCfg[level].dogBase); // keine Übertreibung
+    }
+
+    // Nie überholen
+    if(dog.x > player.x - 10){
+      dog.x = player.x - 10;
+      if(dog.vx > 0) dog.vx = 0;
+    }
+  }
+
+  // Fensterpositionen für die Skyline
+  const farWindows = [];
+  const nearWindows = [];
+  function prepareWindows(W,H){
+    farWindows.length = 0;
+    nearWindows.length = 0;
+
+    for(let i=0;i<14;i++){
+      const bw = 220 + (i%4)*30;
+      const bh = H*0.34 + (i%7)*28;
+      const bx = i*320;
+      const topStart = H - bh + bh*0.12;
+      for(let w=bx+10; w<bx+bw-10; w+=42){
+        if(Math.random() < 0.75) continue;
+        const hTop = topStart + Math.random() * (bh*0.22);
+        farWindows.push({ x:w, y:hTop, w:6, h:10, col: (i%3===0?'#ffe39a':(i%3===1?'#ffd777':'#fff0bb')) });
+      }
+    }
+
+    for(let i=0;i<12;i++){
+      const bw = 200 + (i%4)*36;
+      const bh = H*0.42 + (i%7)*32;
+      const bx = i*280;
+      const topStart = H - bh + bh*0.10;
+      for(let w=bx+12; w<bx+bw-12; w+=40){
+        if(Math.random() < 0.72) continue;
+        const hTop = topStart + Math.random() * (bh*0.24);
+        nearWindows.push({ x:w, y:hTop, w:7, h:12, col: (i%3===0?'#ffd27a':(i%3===1?'#ffdf93':'#fff1b8')) });
+      }
+    }
+  }
+
+  // Hintergrund
+  function drawSky(){
+    const W = canvas.width, H = canvas.height;
+
+    const sky = ctx.createLinearGradient(0,0,0,H);
+    sky.addColorStop(0,'#0a1022');
+    sky.addColorStop(1,'#050812');
+    ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
+
+    // Mond
+    const moonX = (W*0.78 - (cam.x*0.06)%W);
+    const moonY = H*0.22;
+    ctx.save();
+    ctx.fillStyle = '#dfe7ff';
+    ctx.beginPath(); ctx.arc(moonX, moonY, 38, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#b9c5ff';
+    ctx.beginPath(); ctx.arc(moonX+8, moonY-6, 8, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(moonX-10, moonY+10, 6, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // Ferne Skyline
+    ctx.fillStyle = '#0e1629';
+    for(let i=0;i<16;i++){
+      const bw = 240 + (i%4)*36;
+      const bh = H*0.34 + (i%7)*26;
+      const base = ((i*300 - cam.x*0.12) % (W+360)) - 180;
+      ctx.fillRect(base, H - bh, bw, bh);
+    }
+    farWindows.forEach(f=>{
+      const base = ((f.x - cam.x*0.12) % (W+360));
+      if(base < -20 || base > W+20) return;
+      ctx.fillStyle = f.col;
+      ctx.fillRect(base, f.y, f.w, f.h);
+    });
+
+    // Nahe Skyline
+    ctx.fillStyle = '#121b33';
+    for(let i=0;i<12;i++){
+      const bw = 200 + (i%4)*36;
+      const bh = H*0.42 + (i%7)*32;
+      const base = ((i*260 - cam.x*0.22) % (W+360)) - 180;
+      ctx.fillRect(base, H - bh, bw, bh);
+    }
+    nearWindows.forEach(f=>{
+      const base = ((f.x - cam.x*0.22) % (W+360));
+      if(base < -20 || base > W+20) return;
+      ctx.fillStyle = f.col;
+      ctx.fillRect(base, f.y, f.w, f.h);
+    });
+  }
+
+  function roundedRect(c,x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+  }
+
+  // Dächer
+  function drawRoof(p){
+    const x = p.x - cam.x;
+    const y = p.yTop;
+    if(x + p.w < -60 || x > canvas.width + 60) return;
+
+    ctx.fillStyle = '#1b2330';
+    ctx.fillRect(x, y, p.w, p.h);
+    ctx.fillStyle = '#2b3550';
+    ctx.fillRect(x, y, p.w, 4);
+    ctx.fillStyle = '#3c4c66';
+    for(let i=16;i<p.w-16;i+=48){ ctx.fillRect(x+i, y+6, 14, 10); }
+
+    ctx.save();
+    ctx.strokeStyle = ROOF_GLOW;
+    ctx.lineWidth = 4;
+    ctx.shadowColor = ROOF_GLOW;
+    ctx.shadowBlur = 12;
+    ctx.strokeRect(x+1, y+1, p.w-2, p.h-2);
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle = ROOF_BORDER;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x+1, y+1, p.w-2, p.h-2);
+    ctx.restore();
+  }
+
+  // Spieler zeichnen – 24px tiefer
+  function drawPlayer(){
+    const x = player.x - cam.x, y = player.yTop + 24, w = player.w, h = player.h;
+    ctx.save(); ctx.translate(x, y);
+
+    const t = performance.now()*0.0012;
+    const swing = player.onGround ? Math.sin(t*9.2) : 0.0;
+    const armSwing = swing*0.9;
+    const legSwing = player.onGround ? Math.sin(t*10.0) : 0.22;
+    const tilt = player.onGround ? -0.08 : -0.02;
+
+    ctx.save(); ctx.translate(0, 16); ctx.rotate(tilt);
+
+    // Körper
+    ctx.fillStyle = ORANGE;
+    roundedRect(ctx, -w*0.28, -h*0.52, w*0.56, h*0.54, 9); ctx.fill();
+    ctx.fillStyle = ORANGE_D;
+    roundedRect(ctx, -w*0.28, -h*0.52, w*0.18, h*0.54, 9); ctx.fill();
+
+    // Kopf + Mütze
+    ctx.fillStyle = ORANGE;
+    ctx.beginPath(); ctx.arc(0, -h*0.66, 14, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = BLACK;
+    ctx.fillRect(-14, -h*0.74, 28, 6);
+
+    // Arme
+    ctx.fillStyle = BLACK;
+    ctx.save(); ctx.translate(-w*0.23, -h*0.38); ctx.rotate(armSwing*0.55 - 0.5);
+    roundedRect(ctx, -5, 0, 10, h*0.34, 5); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.translate(w*0.23, -h*0.38); ctx.rotate(-armSwing*0.55 - 0.5);
+    roundedRect(ctx, -5, 0, 10, h*0.34, 5); ctx.fill(); ctx.restore();
+
+    // Beine
+    function leg(drawSwing, side){
+      ctx.save(); ctx.translate(side<0 ? -w*0.12 : w*0.12, 0); ctx.rotate(drawSwing);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = ORANGE;
+      ctx.fillStyle = BLACK;
+      roundedRect(ctx, -6, 0, 12, h*0.40, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    leg(-legSwing*0.46 + 0.22, -1);
+    leg( legSwing*0.46 + 0.22,  1);
+
+    ctx.restore(); ctx.restore();
+  }
+
+  // Hund zeichnen – 24px tiefer
+  function drawDog(){
+    const x = dog.x - cam.x, yTop = dog.yTop + 24, w = dog.w, h = dog.h;
+    if(x + w < -60 || x > canvas.width+60) return;
+    ctx.save(); ctx.translate(x, yTop);
+
+    // Kontur
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = DOG_OUTLINE;
+
+    // Körper
+    ctx.fillStyle = DOG_BODY;
+    ctx.beginPath();
+    ctx.moveTo(-w*0.46, -h*0.30);
+    ctx.quadraticCurveTo(0, -h*0.60, w*0.44, -h*0.28);
+    ctx.lineTo(w*0.44, h*0.05);
+    ctx.quadraticCurveTo(0, h*0.22, -w*0.46, h*0.05);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Beine
+    const legSwing = dog.onGround ? Math.sin(performance.now()*0.0016*10)*0.30 : 0;
+    const legs = [[-w*0.30, h*0.06],[w*0.05, h*0.06],[-w*0.15, h*0.06],[w*0.22, h*0.06]];
+    ctx.fillStyle = DOG_LEG;
+    ctx.strokeStyle = DOG_OUTLINE;
+    legs.forEach(([lx,ly],i)=>{
+      ctx.save(); ctx.translate(lx, ly); ctx.rotate((i%2===0?1:-1)*legSwing);
+      ctx.beginPath();
+      roundedRect(ctx, -5, 0, 10, h*0.38, 3);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // Bauch/Highlight
+    ctx.fillStyle = DOG_BELLY;
+    ctx.beginPath();
+    ctx.ellipse(w*0.10, h*0.00, 30, 14, 0.02, 0, Math.PI*2);
+    ctx.fill();
+
+    // Schnauze + Ohren
+    ctx.fillStyle = '#c8cdd3';
+    ctx.beginPath();
+    ctx.ellipse(w*0.48, -h*0.18, 20, 16, 0.1, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = DOG_EAR;
+    ctx.beginPath(); ctx.moveTo(w*0.44,-h*0.30); ctx.lineTo(w*0.54,-h*0.44); ctx.lineTo(w*0.50,-h*0.28); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(w*0.34,-h*0.30); ctx.lineTo(w*0.24,-h*0.44); ctx.lineTo(w*0.38,-h*0.28); ctx.closePath(); ctx.fill();
+
+    // Nase
+    ctx.fillStyle = DOG_BELLY;
+    ctx.beginPath(); ctx.ellipse(w*0.60, -h*0.10, 12, 9, 0.15, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = DOG_NOSE; ctx.beginPath(); ctx.arc(w*0.66, -h*0.10, 2.5, 0, Math.PI*2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Game loop
+  let last = performance.now();
+
+  function step(dt){
+    const cfg = levelCfg[level];
+
+    // Spieler-Tempo
+    const playerRunMax = cfg.dogBase + player.runMaxBoost;
+    const targetVx = moves.run ? playerRunMax : player.runBase;
+    player.vx += (targetVx - player.vx) * 8 * dt;
+
+    // Physik Spieler
+    player.vy += GRAVITY * dt;
+    applyHorizontal(player, dt);
+    applyVertical(player, dt);
+
+    // Hund-Update
+    updateDog(dt);
+    dog.vy += GRAVITY * dt;
+    applyHorizontal(dog, dt);
+    applyVertical(dog, dt);
+
+    // Kamera
+    const targetCam = player.x - canvas.width * 0.30;
+    cam.x += (targetCam - cam.x) * 6 * dt;
+
+    // Fortschritt
+    distance += Math.max(0, player.vx) * dt * 0.06;
+    if(invincible>0) invincible -= dt;
+
+    // Spieler kann runterfallen -> Leben verlieren
+    if(player.yTop > canvas.height + 200){ loseLife('Du bist heruntergerutscht.'); }
+
+    // Fang-Logik (Hund fängt dich, wenn nah)
+    const closeX = Math.abs(player.x - dog.x) < 56;
+    const closeY = Math.abs((player.yTop + player.h) - (dog.yTop + dog.h)) < 56;
+    if(invincible<=0 && closeX && closeY){
+      loseLife('Der Hund ist bei dir (kurze Pause).');
+    }
+  }
+
+  function render(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawSky();
+    for(const p of platforms) drawRoof(p);
+    drawDog();
+    drawPlayer();
+
+    if(state===State.RUN){
+      const cfg = levelCfg[level];
+      const pct = Math.min(1, distance / cfg.length);
+      const W = canvas.width, barW = Math.min(W*0.6, 380), barH = 6, bx = (W-barW)/2, by = 14;
+      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(bx,by,barW,barH);
+      const g = ctx.createLinearGradient(bx,0,bx+barW,0);
+      g.addColorStop(0,'#5aa8ff'); g.addColorStop(1,'#bfe1ff');
+      ctx.fillStyle=g; ctx.fillRect(bx,by,barW*pct,barH);
+      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.strokeRect(bx,by,barW,barH);
+      scorePanel.textContent = 'Distanz: ' + Math.floor(distance) + ' / ' + cfg.length + ' m';
+    }
+  }
+
+  function loop(now){
+    const dt = Math.min(0.033, (now - last)/1000); last = now;
+    if(state===State.RUN){ step(dt); checkGoal(); }
+    render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // HUD & transitions
+  function updateHUD(){
+    livesPanel.textContent = '♥'.repeat(Math.max(0,lives)) || '×';
+    levelPanel.textContent = levelCfg[level].name;
+  }
+  function showScreen(el){
+    [startScreen, betweenScreen, overScreen, winScreen].forEach(s=>s.classList.remove('show'));
+    if(el) el.classList.add('show');
+  }
+  function loseLife(reason){
+    lives--;
+    if(lives<=0){
+      document.getElementById('overReason').textContent = reason;
+      state = State.OVER; showScreen(overScreen);
+    } else {
+      invincible = 1.2;
+      placeOnStart();
+      distance = Math.max(0, distance - 20);
+    }
+    updateHUD();
+  }
+  function checkGoal(){
+    const cfg = levelCfg[level];
+    if(distance >= cfg.length){
+      if(level===1){ toLevel(2); }
+      else if(level===2){ toLevel(3); }
+      else { state = State.WIN; showScreen(winScreen); }
+    }
+  }
+  function toLevel(n){
+    state = State.BETWEEN;
+    forthcoming = n;
+    lvlTitle.textContent = 'Level ' + n;
+    lvlSub.textContent = n===2 ? 'Mehr Lücken und schmalere Dächer – bleib in Bewegung!' : 'Letztes Level – fair und spannend!';
+    showScreen(betweenScreen);
+  }
+
+  // Startpositionen
+  function placeOnStart(){
+    const startRoof = platforms[0];
+    player.x = startRoof.x + 220;
+    player.yTop = startRoof.yTop - player.h;
+    player.vx = 0; player.vy = 0; player.onGround = true;
+
+    dog.x = Math.min(player.x - 10, player.x - DOG_TARGET_BEHIND);
+    dog.yTop = startRoof.yTop - dog.h;
+    dog.vx = 0; dog.vy = 0; dog.onGround = true;
+
+    cam.x = Math.max(0, player.x - canvas.width*0.30);
+  }
+
+  function startLevel(n){
+    level = n; distance = 0; invincible = 0; lives = 3; updateHUD();
+    buildLevel(level);
+    prepareWindows(canvas.width, canvas.height);
+    placeOnStart();
+    showScreen(null); state = State.RUN;
+    moves.run = true;
+  }
+
+  function ensureStartBindings(){
+    const startAny = (ev)=>{ ev.preventDefault(); if(state===State.START) startLevel(1); };
+    startBtn.addEventListener('click', startAny);
+    startBtn.addEventListener('touchstart', startAny, {passive:false});
+    canvas.addEventListener('touchstart', startAny, {passive:false});
+    canvas.addEventListener('mousedown', startAny);
+  }
+  ensureStartBindings();
+
+  lvlBtn.addEventListener('click', ()=>startLevel(forthcoming));
+  restartBtn.addEventListener('click', ()=>startLevel(1));
+  againBtn.addEventListener('click', ()=>startLevel(1));
+
+})();
+</script>
+</body>
+</html>

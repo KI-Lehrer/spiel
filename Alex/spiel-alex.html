@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Phantom Escape – Spieler langsamer, KI +40%</title>
+<style>
+  :root{ --info-height: clamp(150px, 24vh, 240px); --border: 8px; }
+  *{ box-sizing:border-box; }
+  html, body{ margin:0; padding:0; height:100%; background:#0e0e0e; color:#eee; font-family:system-ui, Segoe UI, Arial; }
+  .page{ display:flex; flex-direction:column; height:100svh; width:100vw; }
+  #gameWrap{ position:relative; flex: 1 1 auto; min-height: 220px; background:#000; border-bottom: var(--border) solid #222; overflow:hidden; }
+  .canvasBox{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#111; }
+  #canvas{ width:100%; height:100%; display:block; outline:none; object-fit:contain; background:#000; }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+  #hud{ position:absolute; left:10px; top:10px; z-index:20; background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:10px; font-size:clamp(12px, 1.6vw, 16px); }
+  #touchControls{ position:absolute; left:14px; bottom:14px; z-index:25; width:min(38vw, 260px); height:min(38vw, 260px);
+    display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:8px; opacity:0.95; touch-action:none; }
+  .tc-btn{ background:#1c1c1c; color:#fff; border:1px solid #3b3b3b; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    font-size:clamp(16px, 3.2vw, 22px); user-select:none; }
+  .tc-btn:active{ background:#2a2a2a; }
+  .tc-empty{ background:transparent; border:none; }
+  #info{ flex: 0 0 var(--info-height); width:100%; background:#141414; padding:12px; display:flex; flex-direction:column; gap:10px; border-top: var(--border) solid #222; }
+  #info h1{ margin:0; font-size:20px; }
+  #info p{ margin:0; color:#ccc; font-size:14px; line-height:1.4; }
+  .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .select{ background:#1f1f1f; color:#fff; border:1px solid #3a3a3a; border-radius:8px; padding:8px 10px; font-size:15px; }
+  .btn{ background:#333; color:#fff; padding:10px 12px; border-radius:8px; display:inline-block; cursor:pointer; user-select:none; border:1px solid #3a3a3a; }
+  .btn:active{ transform: translateY(1px); }
+  .legendLine{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .legend{ display:flex; gap:8px; align-items:center; }
+  .swatch{ width:18px; height:18px; border-radius:3px; border:1px solid rgba(255,255,255,.08); }
+  .sw-phantom{ background:#4aa3d9; }
+  .sw-chaser{ background:#ffd38a; }
+  .sw-goal{ background:#7dff9a; }
+  .sw-wall{ background:#444; }
+  .sw-floor{ background:#1b1b1b; }
+  .sw-ghost{ background:#444; box-shadow: inset 0 0 0 2px #7dff9a; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div id="gameWrap" aria-label="Phantom Escape – Labyrinth">
+      <div id="hud">
+        Ziel: Finde die echte grüne Tür · <span id="status">Spiele</span> · <span id="hudLevel">Doppeltür</span>
+      </div>
+
+      <div class="canvasBox">
+        <canvas id="canvas" tabindex="0" aria-label="Spielfeld"></canvas>
+      </div>
+
+      <div id="touchControls" aria-hidden="false">
+        <div class="tc-empty"></div>
+        <div class="tc-btn" data-dir="up">▲</div>
+        <div class="tc-empty"></div>
+        <div class="tc-btn" data-dir="left">◀</div>
+        <div class="tc-btn" data-dir="center"></div>
+        <div class="tc-btn" data-dir="right">▶</div>
+        <div class="tc-empty"></div>
+        <div class="tc-btn" data-dir="down">▼</div>
+        <div class="tc-empty"></div>
+      </div>
+    </div>
+
+    <aside id="info">
+      <h1>Phantom Escape – Spieler langsamer, KI +40%</h1>
+      <p>Steuerung: Pfeiltasten/WASD oder die Pfeile im Spielfeld (iPad). R = Neustart.</p>
+      <div class="row">
+        <label for="level" style="min-width:110px;">Level wählen:</label>
+        <select id="level" class="select" aria-label="Level wählen">
+          <option value="easy">Leicht (160 ms)</option>
+          <option value="medium">Mittel (180 ms)</option>
+          <option value="hard">Schwer (200 ms)</option>
+          <option value="double" selected>Doppeltür (180 ms)</option>
+          <option value="ghost">Ghostblock (180 ms)</option>
+        </select>
+        <div class="btn" id="applyLevel">Level starten</div>
+        <div class="btn" id="restart">Neustart</div>
+      </div>
+      <div class="legendLine">
+        <div class="legend"><div class="swatch sw-floor"></div><div>Weg</div></div>
+        <div class="legend"><div class="swatch sw-wall"></div><div>Wand</div></div>
+        <div class="legend"><div class="swatch sw-ghost"></div><div>Ghostblock (sieht wie Wand aus, aber durchlässig)</div></div>
+        <div class="legend"><div class="swatch sw-phantom"></div><div>Spieler</div></div>
+        <div class="legend"><div class="swatch sw-chaser"></div><div>Gegner</div></div>
+        <div class="legend"><div class="swatch sw-goal"></div><div>Grüne Tür (Ziel)</div></div>
+      </div>
+      <p style="color:#aaa;">Hinweis: Gegner ist insgesamt 40% schneller als die Originalwerte.</p>
+    </aside>
+  </div>
+
+<script>
+const viewCanvas = document.getElementById('canvas');
+const ctx = viewCanvas.getContext('2d');
+
+const statusEl = document.getElementById('status');
+const hudLevelEl = document.getElementById('hudLevel');
+const restartBtn = document.getElementById('restart');
+const levelSelect = document.getElementById('level');
+const applyLevelBtn = document.getElementById('applyLevel');
+const touchControls = document.getElementById('touchControls');
+const gameWrap = document.getElementById('gameWrap');
+
+const ROWS = 8, COLS = 12;
+
+/* Codes:
+   0 = Weg
+   1 = Wand
+   2 = Ghostblock (sieht wie Wand aus, aber durchlässig)
+*/
+const TILE_FLOOR = 0, TILE_WALL = 1, TILE_GHOST = 2;
+
+/* Basis-Levels (Original-Schrittzeiten für den Gegner) */
+const LEVELS_BASE = {
+  easy: {
+    name:'Leicht',
+    maze: [
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,1,0,1,0,0,1],
+      [1,1,1,0,1,0,1,0,1,1,0,1],
+      [1,0,1,0,0,0,1,0,1,0,0,1],
+      [1,0,1,1,1,0,1,1,1,1,0,1],
+      [1,0,0,0,1,0,0,0,1,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    player:{r:1,c:1},
+    goal:{r:1,c:10},
+    chaserStepMs: 320
+  },
+  medium: {
+    name:'Mittel',
+    maze: [
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,1,1,0,1,0,1,0,0,1],
+      [1,1,1,0,1,0,1,0,1,1,0,1],
+      [1,0,1,0,0,0,1,0,0,1,0,1],
+      [1,0,1,1,1,0,1,1,1,1,0,1],
+      [1,0,0,0,1,0,0,0,1,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    player:{r:1,c:1},
+    goal:{r:1,c:10},
+    chaserStepMs: 280
+  },
+  hard: {
+    name:'Schwer',
+    maze: [
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,1,0,1,0,1,0,1,0,0,1],
+      [1,0,0,1,1,0,1,0,1,1,0,1],
+      [1,0,1,0,0,0,1,0,1,0,0,1],
+      [1,1,1,0,1,0,1,1,1,1,0,1],
+      [1,0,0,0,1,0,0,0,1,0,1,1],
+      [1,0,1,0,1,1,0,0,1,1,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    player:{r:1,c:1},
+    goal:{r:6,c:10},
+    chaserStepMs: 250
+  },
+  double: {
+    name:'Doppeltür (gegenüberliegend)',
+    maze: [
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,1,0,0,1,0,1],
+      [1,1,1,0,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,0,1,0,0,1,0,1],
+      [1,0,1,1,1,0,1,1,1,1,0,1],
+      [1,0,0,0,1,0,0,0,1,0,0,1],
+      [1,0,0,0,1,1,0,0,1,1,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    player:{r:1,c:1},
+    doors:[ {r:6,c:10}, {r:1,c:10} ],
+    chaserStepMs: 270
+  },
+  ghost: {
+    name:'Ghostblock',
+    maze: [
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,2,0,1,0,2,0,1,0,0,1],
+      [1,2,1,0,1,0,1,0,1,2,0,1],
+      [1,0,0,0,2,0,1,0,1,0,0,1],
+      [1,0,1,2,1,0,1,1,2,1,0,1],
+      [1,0,0,0,1,0,0,0,1,0,2,1],
+      [1,2,0,0,1,1,0,0,1,1,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    player:{r:1,c:1},
+    goal:{r:6,c:10},
+    chaserStepMs: 270
+  }
+};
+
+/* Gegner 40% schneller: Schrittzeit * 0.6 (mit Mindestgrenze) */
+/* Spieler-Schrittintervall pro Level: easy 160, medium/double/ghost 180, hard 200 */
+const LEVELS = {};
+for(const k in LEVELS_BASE){
+  const L = LEVELS_BASE[k];
+  LEVELS[k] = {
+    ...L,
+    chaserStepMs: Math.max(60, Math.round(L.chaserStepMs * 0.6)),
+    playerStepMs:
+      k==='easy'   ? 160 :
+      k==='hard'   ? 200 :
+      /* medium, double, ghost */ 180
+  };
+}
+
+let MAZE, player, chaser, goal, fakeDoor, chaserStepMs, playerStepMs;
+let keys = {};
+let touchState = { up:false, down:false, left:false, right:false };
+let gameState = 'playing';
+let lastTickTS = 0;
+let chaserTimer = 0;
+let fakeDoorNoticeTimer = 0;
+const MIN_START_DISTANCE = 6; // Mindestabstand in Schritten
+
+/* Canvas-Größe anpassen */
+function fitCanvas(){
+  const rect = gameWrap.getBoundingClientRect();
+  const targetAR = COLS / ROWS;
+  let w = rect.width, h = rect.height;
+  if (w / h > targetAR) { w = h * targetAR; } else { h = w / targetAR; }
+  w = Math.max(200, Math.floor(w));
+  h = Math.max(150, Math.floor(h));
+  viewCanvas.width = w;
+  viewCanvas.height = h;
+}
+window.addEventListener('resize', fitCanvas);
+window.addEventListener('orientationchange', ()=>{ setTimeout(fitCanvas, 200); });
+new ResizeObserver(fitCanvas).observe(gameWrap);
+
+viewCanvas.addEventListener('pointerdown', ()=> viewCanvas.focus());
+viewCanvas.addEventListener('touchstart', ()=> viewCanvas.focus(), {passive:true});
+
+/* Eingabe */
+window.addEventListener('keydown', e=>{
+  const k = e.key.toLowerCase();
+  keys[k]=true;
+  if(k==='r'){ e.preventDefault(); loadLevel(levelSelect.value); }
+});
+window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
+
+/* Touch-Pfeile */
+function bindTouchButton(btn, dirKey){
+  const set = (val)=>{ touchState[dirKey]=val; };
+  btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); set(true); }, {passive:false});
+  btn.addEventListener('touchend',   (e)=>{ e.preventDefault(); set(false); }, {passive:false});
+  btn.addEventListener('touchcancel',(e)=>{ e.preventDefault(); set(false); }, {passive:false});
+  btn.addEventListener('mousedown', ()=> set(true));
+  btn.addEventListener('mouseup',   ()=> set(false));
+  btn.addEventListener('mouseleave',()=> set(false));
+}
+Array.from(touchControls.querySelectorAll('.tc-btn')).forEach(btn=>{
+  const dir = btn.getAttribute('data-dir');
+  if(dir==='up') bindTouchButton(btn,'up');
+  if(dir==='down') bindTouchButton(btn,'down');
+  if(dir==='left') bindTouchButton(btn,'left');
+  if(dir==='right') bindTouchButton(btn,'right');
+});
+
+/* Grid-Helfer */
+function inside(r,c){ return r>=0 && r<ROWS && c>=0 && c<COLS; }
+function isWalkable(r,c){
+  if(!inside(r,c)) return false;
+  const t = MAZE[r][c];
+  return t===TILE_FLOOR || t===TILE_GHOST;
+}
+function tryMove(entity, dr, dc){
+  const nr = entity.r + dr, nc = entity.c + dc;
+  if(isWalkable(nr,nc)){ entity.r=nr; entity.c=nc; return true; }
+  return false;
+}
+
+/* BFS-Distanz */
+function bfsDistance(from, to){
+  if(!isWalkable(from.r,from.c) || !isWalkable(to.r,to.c)) return -1;
+  const q=[{r:from.r,c:from.c,d:0}];
+  const seen=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+  seen[from.r][from.c]=true;
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  while(q.length){
+    const {r,c,d}=q.shift();
+    if(r===to.r && c===to.c) return d;
+    for(const [dr,dc] of dirs){
+      const nr=r+dr,nc=c+dc;
+      if(inside(nr,nc) && !seen[nr][nc] && isWalkable(nr,nc)){
+        seen[nr][nc]=true; q.push({r:nr,c:nc,d:d+1});
+      }
+    }
+  }
+  return -1;
+}
+
+/* Pfad sicherstellen */
+function ensurePath(from, to){
+  if(bfsDistance(from,to) >= 0) return;
+  const stepC = to.c > from.c ? 1 : -1;
+  for(let c=from.c; c!==to.c+stepC; c+=stepC){
+    if(MAZE[from.r][c]===TILE_WALL){ MAZE[from.r][c]=TILE_FLOOR; if(bfsDistance(from,to) >= 0) return; }
+  }
+  const stepR = to.r > from.r ? 1 : -1;
+  for(let r=from.r; r!==to.r+stepR; r+=stepR){
+    if(MAZE[r][to.c]===TILE_WALL){ MAZE[r][to.c]=TILE_FLOOR; if(bfsDistance(from,to) >= 0) return; }
+  }
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      if(((r+c)%2===0) && MAZE[r][c]===TILE_WALL){
+        MAZE[r][c]=TILE_FLOOR;
+        if(bfsDistance(from,to) >= 0) return;
+      }
+    }
+  }
+}
+
+/* Gegner-KI Bewegung */
+function chaserStep(){
+  const moves = [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}];
+  const valid = moves.filter(m => isWalkable(chaser.r+m.dr, chaser.c+m.dc));
+  const scored = valid.map(m=>{
+    const pos={r:chaser.r+m.dr, c:chaser.c+m.dc};
+    return {move:m, dist:bfsDistance(pos, player)};
+  }).filter(x=>x.dist>=0);
+  if(!scored.length) return;
+  scored.sort((a,b)=> a.dist - b.dist);
+  const best = scored[0].dist;
+  const options = scored.filter(x=> x.dist <= best+1);
+  const pick = options[Math.floor(Math.random()*options.length)];
+  chaser.r += pick.move.dr; chaser.c += pick.move.dc;
+}
+
+/* Doppeltür: echte/falsche Tür losen */
+function pickDoors(L){
+  if(L.doors && L.doors.length===2){
+    const i = Math.random() < 0.5 ? 0 : 1;
+    goal = {...L.doors[i]};
+    fakeDoor = {...L.doors[1 - i]};
+  } else {
+    goal = {...L.goal};
+    fakeDoor = null;
+  }
+}
+
+/* Gegner-Start: weit weg von Spieler & Türen */
+function placeChaserOpposite(minDist){
+  const cells = [];
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      if(isWalkable(r,c)) cells.push({r,c});
+    }
+  }
+  if(!cells.length){ chaser = {...player}; return; }
+
+  const dTo = (a,b)=> bfsDistance(a,b);
+  let best = null;
+  for(const rc of cells){
+    const dp = dTo(rc, player);
+    const dg = dTo(rc, goal);
+    const df = fakeDoor ? dTo(rc, fakeDoor) : 0;
+    if(dp < 0 || dg < 0 || (fakeDoor && df < 0)) continue;
+    const score = dp + dg + df + (ROWS-rc.r) + (COLS-rc.c);
+    if(dp >= minDist && (!best || score > best.score)){
+      best = { rc, score };
+    }
+  }
+  if(!best){
+    let far = null;
+    for(const rc of cells){
+      const dp = dTo(rc, player);
+      if(dp >= 0){
+        if(!far || dp > far.dp) far = { rc, dp };
+      }
+    }
+    best = far ? { rc: far.rc, score: far.dp } : { rc: cells[0], score: 0 };
+  }
+  chaser = { r: best.rc.r, c: best.rc.c };
+}
+
+/* Level laden */
+function loadLevel(key){
+  const L = LEVELS[key];
+  MAZE = L.maze.map(r=>r.slice());
+  player = {...L.player};
+  chaserStepMs = L.chaserStepMs;     // Gegner 40% schneller
+  playerStepMs = L.playerStepMs;     // Spieler wie gewünscht
+
+  if(key==='double'){ pickDoors(L); } else { goal = {...L.goal}; fakeDoor = null; }
+
+  keys = {};
+  touchState = { up:false, down:false, left:false, right:false };
+  chaserTimer = 0;
+  lastTickTS = 0;
+  gameState = 'playing';
+  fakeDoorNoticeTimer = 0;
+  statusEl.textContent = 'Spiele';
+  hudLevelEl.textContent = L.name + ` · Spieler: ${playerStepMs}ms · KI: ${chaserStepMs}ms`;
+
+  ensurePath(player, goal);
+
+  // Gegner platzieren (mit Mindestabstand)
+  placeChaserOpposite(MIN_START_DISTANCE);
+
+  // Sicherheit: Abstand prüfen, notfalls neu platzieren
+  let distPG = bfsDistance(player, goal);
+  let distCP = bfsDistance(chaser, player);
+  let tries = 0;
+  while((distPG < 0 || distCP < MIN_START_DISTANCE) && tries < 60){
+    if(distPG < 0){ ensurePath(player, goal); }
+    if(distCP < MIN_START_DISTANCE){ placeChaserOpposite(MIN_START_DISTANCE); }
+    distPG = bfsDistance(player, goal);
+    distCP = bfsDistance(chaser, player);
+    tries++;
+  }
+
+  viewCanvas.focus();
+  drawFullMap();
+}
+
+/* Zeichnen */
+function drawFullMap(){
+  const W = viewCanvas.width, H = viewCanvas.height;
+  if(W <= 0 || H <= 0) return;
+  ctx.clearRect(0,0,W,H);
+
+  const cellW = W / COLS;
+  const cellH = H / ROWS;
+
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0,0,W,H);
+
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const x = c*cellW, y = r*cellH;
+      const tile = MAZE[r][c];
+      if(tile===TILE_WALL || tile===TILE_GHOST){
+        ctx.fillStyle = '#2e2e2e';
+        ctx.fillRect(x, y, cellW, cellH);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.strokeRect(x+0.5, y+0.5, cellW-1, cellH-1);
+        if(tile===TILE_GHOST){
+          ctx.strokeStyle = 'rgba(125,255,154,0.25)';
+          ctx.lineWidth = Math.max(1, Math.min(cellW,cellH)*0.05);
+          ctx.strokeRect(x+2, y+2, cellW-4, cellH-4);
+        }
+      } else {
+        ctx.fillStyle = '#141414';
+        ctx.fillRect(x, y, cellW, cellH);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.strokeRect(x+0.5, y+0.5, cellW-1, cellH-1);
+      }
+    }
+  }
+
+  function drawDoor(rc){
+    ctx.fillStyle = '#7dff9a';
+    ctx.fillRect(rc.c*cellW + cellW*0.18, rc.r*cellH + cellH*0.18, cellW*0.64, cellH*0.64);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(rc.c*cellW + cellW*0.18, rc.r*cellH + cellH*0.18, cellW*0.64, Math.max(2, cellH*0.06));
+  }
+  drawDoor(goal);
+  if(fakeDoor) drawDoor(fakeDoor);
+
+  // Gegner
+  ctx.fillStyle = '#ffd38a';
+  ctx.beginPath();
+  ctx.arc(chaser.c*cellW + cellW/2, chaser.r*cellH + cellH/2, Math.min(cellW,cellH)*0.28, 0, Math.PI*2);
+  ctx.fill();
+
+  // Spieler
+  ctx.fillStyle = '#4aa3d9';
+  ctx.beginPath();
+  ctx.arc(player.c*cellW + cellW/2, player.r*cellH + cellH/2, Math.min(cellW,cellH)*0.3, 0, Math.PI*2);
+  ctx.fill();
+
+  if(fakeDoorNoticeTimer > 0){
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = '#7dff9a';
+    ctx.font = 'bold 44px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Falsche Tür!', W/2, H/2 - 8);
+    ctx.font = '20px system-ui';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('Die echte Tür ist auch grün – such weiter!', W/2, H/2 + 26);
+  }
+
+  if(gameState!=='playing'){
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = gameState==='won' ? '#7dff9a' : '#ff8a8a';
+    ctx.font = 'bold 56px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(gameState==='won' ? 'Gewonnen!' : 'Verloren!', W/2, H/2 - 12);
+    ctx.font = '22px system-ui';
+    ctx.fillText('Tippe „Neustart“ oder wähle ein Level.', W/2, H/2 + 34);
+  }
+}
+
+/* Game Loop */
+function tick(ts){
+  if(!lastTickTS) lastTickTS = ts;
+  const dt = ts - lastTickTS; lastTickTS = ts;
+
+  if(gameState === 'playing'){
+    // Spieler bewegt sich nach playerStepMs (pro Level verschieden)
+    const moveInterval = playerStepMs;
+    if(!player._lastMove) player._lastMove = 0;
+    player._lastMove += dt;
+
+    const wantsUp = keys['arrowup']||keys['w']||touchState.up;
+    const wantsDown = keys['arrowdown']||keys['s']||touchState.down;
+    const wantsLeft = keys['arrowleft']||keys['a']||touchState.left;
+    const wantsRight = keys['arrowright']||keys['d']||touchState.right;
+
+    if(player._lastMove >= moveInterval){
+      let moved = false;
+      if(wantsUp){ moved = tryMove(player,-1,0) || moved; }
+      else if(wantsDown){ moved = tryMove(player,1,0) || moved; }
+      else if(wantsLeft){ moved = tryMove(player,0,-1) || moved; }
+      else if(wantsRight){ moved = tryMove(player,0,1) || moved; }
+      if(moved) player._lastMove=0;
+    }
+
+    // Gegner (40% schneller => kleinere Schrittzeit)
+    chaserTimer += dt;
+    if(chaserTimer > chaserStepMs){
+      chaserStep();
+      chaserTimer = 0;
+    }
+
+    // Doppeltür: Fake-Tür Meldung
+    if(fakeDoor && player.r===fakeDoor.r && player.c===fakeDoor.c){
+      fakeDoorNoticeTimer = 900;
+      statusEl.textContent = 'Das war die falsche Tür – such weiter!';
+    } else if(fakeDoorNoticeTimer > 0){
+      fakeDoorNoticeTimer -= dt;
+      if(fakeDoorNoticeTimer < 0) fakeDoorNoticeTimer = 0;
+    }
+
+    // Gewinn / Verlust
+    if(player.r===chaser.r && player.c===chaser.c){
+      gameState='lost'; statusEl.textContent='Verloren — erwischt!';
+    }
+    if(player.r===goal.r && player.c===goal.c){
+      gameState='won'; statusEl.textContent='Gewonnen — echte Tür gefunden!';
+    }
+  }
+
+  drawFullMap();
+  requestAnimationFrame(tick);
+}
+
+/* Buttons */
+applyLevelBtn.addEventListener('click', ()=> loadLevel(levelSelect.value));
+restartBtn.addEventListener('click', ()=> loadLevel(levelSelect.value));
+
+/* Start */
+function start(){
+  fitCanvas();
+  loadLevel('double');
+  drawFullMap();
+  requestAnimationFrame(tick);
+}
+start();
+</script>
+</body>
+</html>
+

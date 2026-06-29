@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Süsses Endlos‑Abenteuer</title>
+<style>
+  :root{
+    --text:#1e2a36; --muted:#57707f;
+    --skyA:#cfeaff; --skyB:#f6fbff; --skyC:#ffffff;
+    --groundA:#b2f2d6; --groundB:#90e7bf;
+    --platA:#aebdff; --platB:#8ea1ff;
+    --coin:#ffd76a; --coin2:#fff0a3; --coin3:#ffb84f;
+    --uiBg:rgba(255,255,255,0.94);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%}
+  body{margin:0; font-family:Arial, Helvetica, sans-serif; color:var(--text); background:#fff; overflow:hidden;}
+
+  /* Hintergrund */
+  .bg{position:fixed; inset:0; z-index:-3; background:linear-gradient(180deg,var(--skyA), var(--skyB) 55%, var(--skyC));}
+  .parallax{
+    position:fixed; inset:0; z-index:-2; pointer-events:none;
+  }
+  .cloud{position:absolute; width:140px; height:60px; background:#ffffff; border-radius:40px;}
+  .cloud:before,.cloud:after{content:""; position:absolute; background:#ffffff; border-radius:50%;}
+  .cloud:before{width:70px; height:70px; left:10px; top:-30px;}
+  .cloud:after{width:90px; height:90px; left:60px; top:-40px;}
+  .star{position:absolute; width:18px; height:18px; background:#ffe6a8; transform:rotate(45deg); border-radius:3px; box-shadow:0 0 10px rgba(255,230,168,0.7);}
+  .bgHill{
+    position:fixed; left:-10vw; right:-10vw; bottom:-30px; height:180px;
+    background:radial-gradient(1200px 180px at 30% 100%, #d6f9ea 40%, rgba(0,0,0,0) 41%) no-repeat,
+                radial-gradient(1100px 180px at 70% 100%, #c7f3e2 40%, rgba(0,0,0,0) 41%) no-repeat;
+    z-index:-1; opacity:0.8;
+  }
+
+  /* UI */
+  .ui{position:fixed; left:0; right:0; top:0; display:flex; align-items:center; gap:10px; padding:8px 12px; background:linear-gradient(180deg, var(--uiBg), rgba(255,255,255,0)); z-index:6; font-size:14px;}
+  .chip{padding:6px 10px; background:#fff; border:1px solid rgba(0,0,0,0.06); border-radius:10px}
+  .btn{background:#213250; color:#fff; border:1px solid rgba(0,0,0,0.18); border-radius:10px; padding:8px 12px; cursor:pointer;}
+  .btn:disabled{opacity:0.6}
+
+  /* Welt */
+  .world{position:absolute; inset:0; top:52px; overflow:hidden; touch-action:none;}
+  .camera{position:absolute; inset:0;}
+  .level{position:absolute; left:0; top:0; height:100%; width:8000px;}
+  .ground{position:absolute; left:0; right:0; bottom:0; height:90px; background:linear-gradient(var(--groundA), var(--groundB)); border-top:2px solid rgba(0,0,0,0.08);}
+
+  .plat{position:absolute; height:20px; background:linear-gradient(var(--platA), var(--platB)); border-radius:8px; box-shadow:0 3px 0 rgba(0,0,0,0.15);}
+  .plat::after{content:""; position:absolute; left:6px; right:6px; top:2px; height:4px; background:rgba(255,255,255,0.28); border-radius:4px;}
+  .bouncy{position:absolute; width:110px; height:16px; background:#ffe6a7; border:2px solid #ffc86a; border-radius:10px; box-shadow:0 3px 0 rgba(0,0,0,0.15);}
+  .friendly{position:absolute; width:36px; height:36px; background:#ffefd6; border:2px solid #ffd48a; border-radius:10px; box-shadow:0 3px 0 rgba(0,0,0,0.12);} /* freundliches Hindernis: stoßt weich ab */
+
+  /* Spieler */
+  .player{position:absolute; width:92px; height:120px; left:40px; bottom:110px; z-index:5;}
+  .svgWrap{width:92px; height:114px;}
+  .tag{position:absolute; top:-14px; left:50%; transform:translateX(-50%); padding:2px 6px; font-size:12px; font-weight:700; border-radius:6px; border:2px solid rgba(0,0,0,0.25); background:#fff; white-space:nowrap;}
+
+  /* Auswahl */
+  .selector{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:100; background:rgba(0,0,0,0.45);}
+  .panel{width:min(900px,92vw); background:rgba(255,255,255,0.96); border:1px solid rgba(0,0,0,0.08); padding:16px; border-radius:12px;}
+  .grid{display:grid; grid-template-columns: repeat(2,1fr); gap:12px; margin-top:10px;}
+  .charCard{background:rgba(0,0,0,0.04); border:1px solid rgba(0,0,0,0.08); border-radius:12px; padding:10px; text-align:center; transition:transform .12s; touch-action:manipulation; cursor:pointer;}
+  .charCard:active{transform:scale(.98)}
+  .name{margin-top:6px; font-weight:700; font-size:14px}
+
+  /* Coins */
+  .coin{position:absolute; width:22px; height:22px; border-radius:50%; background:radial-gradient(circle at 30% 30%, var(--coin2), var(--coin)); box-shadow:inset -3px -3px 0 var(--coin3), 0 0 8px rgba(255,215,106,0.6); border:2px solid rgba(255,184,79,0.8);}
+  .coin::after{content:""; position:absolute; left:6px; right:6px; top:9px; height:4px; background:rgba(0,0,0,0.12); border-radius:3px;}
+
+  /* Steuerung */
+  .controls{position:fixed; bottom:14px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:flex-end; z-index:6;}
+  .leftPad{display:flex; gap:10px;}
+  .ctrl{width:78px; height:78px; background:rgba(255,255,255,0.92); border:1px solid rgba(0,0,0,0.12); border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--text); font-weight:800; user-select:none;}
+  .ctrl:active{transform:scale(.96)}
+  .jumpZone{width:40vw; min-width:140px; height:118px; background:rgba(255,255,255,0.92); border:1px solid rgba(0,0,0,0.12); border-radius:14px; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--text);}
+
+  /* Shop */
+  .shop{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:80; background:rgba(0,0,0,0.45);}
+  .shopCard{width:min(1020px,96vw); background:#fff; border:1px solid rgba(0,0,0,0.1); border-radius:12px; padding:14px;}
+  .shopTop{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .shopBody{display:grid; grid-template-columns: 320px 1fr; gap:12px; margin-top:10px;}
+  .previewBox{border:1px solid rgba(0,0,0,0.08); border-radius:10px; background:#f8fbff; padding:10px; display:flex; align-items:center; justify-content:center; min-height:320px;}
+  .items{display:grid; grid-template-columns: repeat(3,1fr); gap:10px;}
+  .item{border:1px solid rgba(0,0,0,0.1); border-radius:10px; padding:10px;}
+  .item .thumb{height:100px; display:flex; align-items:center; justify-content:center; margin-bottom:6px; background:#f6f9ff; border-radius:8px; border:1px solid rgba(0,0,0,0.06);}
+  .item button{margin-top:6px;}
+  .shopTabs{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;}
+  .shopTabs .tab{padding:6px 10px; border:1px solid rgba(0,0,0,0.1); border-radius:10px; background:#f7f9ff; cursor:pointer;}
+
+  .toast{position:fixed; left:50%; top:18px; transform:translateX(-50%); background:rgba(255,255,255,0.95); border:1px solid rgba(0,0,0,0.12); padding:8px 12px; border-radius:8px; font-size:13px; z-index:120; display:none; color:var(--text);}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="parallax" id="parallax"></div>
+<div class="bgHill"></div>
+
+<div class="ui">
+  <div style="font-weight:800;">Süsses Endlos‑Abenteuer</div>
+  <div class="chip">Münzen: <span id="coins">0</span></div>
+  <div class="chip">Strecke: <span id="dist">0</span> m</div>
+  <div class="chip">Figur: <span id="who">–</span></div>
+  <button class="btn" id="shopBtn" disabled>Shop</button>
+  <button class="btn" id="restartBtn" disabled>Neu starten</button>
+</div>
+
+<!-- Auswahl -->
+<div class="selector" id="selector" aria-label="Figur auswählen">
+  <div class="panel">
+    <div style="font-weight:700; margin-bottom:6px;">Wähle deine Figur</div>
+    <div class="grid">
+      <!-- Hund (süß) -->
+      <button class="charCard" data-char="dog" id="cardDogBtn">
+        <div class="svgWrap">
+          <svg width="92" height="114" viewBox="0 0 92 114" aria-label="Hund">
+            <ellipse cx="46" cy="108" rx="20" ry="6" fill="rgba(0,0,0,0.2)"></ellipse>
+            <rect x="22" y="52" width="48" height="30" rx="15" fill="#edf2ff"></rect>
+            <rect x="24" y="46" width="44" height="18" rx="9" fill="#f9fbff"></rect>
+            <rect class="legL" x="30" y="80" width="12" height="22" rx="5" fill="#a6c4ff"></rect>
+            <rect class="legR" x="50" y="80" width="12" height="22" rx="5" fill="#a6c4ff"></rect>
+            <rect x="29" y="100" width="16" height="6" rx="3" fill="#f0f5ff"></rect>
+            <rect x="49" y="100" width="16" height="6" rx="3" fill="#f0f5ff"></rect>
+            <circle cx="46" cy="36" r="16" fill="#f6f7ff"></circle>
+            <ellipse cx="36" cy="26" rx="7" ry="8" fill="#e1e6ff"></ellipse>
+            <ellipse cx="56" cy="26" rx="7" ry="8" fill="#e1e6ff"></ellipse>
+            <circle cx="40" cy="36" r="2.4" fill="#2b2b2b"></circle>
+            <circle cx="52" cy="36" r="2.4" fill="#2b2b2b"></circle>
+            <circle cx="41.2" cy="35" r="0.8" fill="#ffffff"></circle>
+            <circle cx="53.2" cy="35" r="0.8" fill="#ffffff"></circle>
+            <rect x="44" y="40" width="4" height="3" rx="1.5" fill="#2b2b2b"></rect>
+            <circle cx="37.5" cy="40" r="2.6" fill="#ffd7e6" opacity="0.9"></circle>
+            <circle cx="54.5" cy="40" r="2.6" fill="#ffd7e6" opacity="0.9"></circle>
+          </svg>
+        </div>
+        <div class="name">Hund</div>
+      </button>
+      <!-- Panda (süß) -->
+      <button class="charCard" data-char="panda" id="cardPandaBtn">
+        <div class="svgWrap">
+          <svg width="92" height="114" viewBox="0 0 92 114" aria-label="Panda">
+            <ellipse cx="46" cy="108" rx="20" ry="6" fill="rgba(0,0,0,0.2)"></ellipse>
+            <rect x="24" y="50" width="44" height="30" rx="14" fill="#ffffff"></rect>
+            <rect x="24" y="46" width="44" height="18" rx="9" fill="#f3f6ff"></rect>
+            <rect class="legL" x="30" y="80" width="12" height="22" rx="4" fill="#9fbaff"></rect>
+            <rect class="legR" x="50" y="80" width="12" height="22" rx="4" fill="#9fbaff"></rect>
+            <rect x="29" y="100" width="16" height="6" rx="3" fill="#e5eeff"></rect>
+            <rect x="49" y="100" width="16" height="6" rx="3" fill="#e5eeff"></rect>
+            <circle cx="46" cy="36" r="16" fill="#ffffff"></circle>
+            <circle cx="38" cy="28" r="7" fill="#20222a"></circle>
+            <circle cx="54" cy="28" r="7" fill="#20222a"></circle>
+            <rect x="44" y="23" width="16" height="7" rx="3.5" fill="#e7efff"></rect>
+            <ellipse cx="40" cy="36" rx="6" ry="5" fill="#20222a"></ellipse>
+            <ellipse cx="52" cy="36" rx="6" ry="5" fill="#20222a"></ellipse>
+            <circle cx="40" cy="36" r="1.8" fill="#ffffff"></circle>
+            <circle cx="52" cy="36" r="1.8" fill="#ffffff"></circle>
+            <circle cx="36" cy="42" r="2.6" fill="#ffd7e6" opacity="0.9"></circle>
+            <circle cx="56" cy="42" r="2.6" fill="#ffd7e6" opacity="0.9"></circle>
+          </svg>
+        </div>
+        <div class="name">Panda</div>
+      </button>
+    </div>
+    <p style="color:var(--muted); margin-top:10px;">Tippe auf eine Karte, um zu starten.</p>
+  </div>
+</div>
+
+<!-- Shop -->
+<div class="shop" id="shop" aria-hidden="true">
+  <div class="shopCard">
+    <div class="shopTop">
+      <div style="font-weight:800;">Shop – Große Vorschau</div>
+      <button class="btn" id="closeShop">Schließen</button>
+    </div>
+    <div class="shopTabs">
+      <div class="tab" data-cat="hoodies">Hoodies</div>
+      <div class="tab" data-cat="hosen">Hosen</div>
+      <div class="tab" data-cat="hüte">Hüte</div>
+      <div class="tab" data-cat="extras">Extras</div>
+    </div>
+    <div class="shopBody">
+      <div class="previewBox" id="shopPreview"></div>
+      <div class="items" id="shopGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Welt -->
+<div class="world" id="world">
+  <div class="camera" id="camera">
+    <div class="level" id="level">
+      <div class="ground"></div>
+      <div id="coinContainer"></div>
+      <div id="chunkContainer"></div>
+      <!-- Spieler -->
+      <div class="player" id="player">
+        <div class="svgWrap" id="avatar"></div>
+        <div class="tag" id="nameTag">–</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Steuerung -->
+<div class="controls">
+  <div class="leftPad">
+    <div class="ctrl" id="leftBtn" aria-label="Links">◀</div>
+    <div class="ctrl" id="rightBtn" aria-label="Rechts">▶</div>
+  </div>
+  <div class="jumpZone" id="jumpZone" aria-label="Springen">Tippen = Springen</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const qs = s=>document.querySelector(s);
+  const qsa = s=>Array.from(document.querySelectorAll(s));
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  const rand=(a,b)=>Math.random()*(b-a)+a;
+  const choice = arr => arr[Math.floor(Math.random()*arr.length)];
+
+  /* Parallax: Wolken + Sterne */
+  const par = qs('#parallax');
+  function makeCloud(x,y,scale){ const c=document.createElement('div'); c.className='cloud'; c.style.left=x+'px'; c.style.top=y+'px'; c.style.transform='scale('+scale+')'; par.appendChild(c); }
+  function makeStar(x,y){ const s=document.createElement('div'); s.className='star'; s.style.left=x+'px'; s.style.top=y+'px'; par.appendChild(s); }
+  function initParallax(){
+    par.innerHTML='';
+    for(let i=0;i<8;i++) makeCloud(rand(0, window.innerWidth*1.2), rand(20,180), rand(0.8,1.2));
+    for(let i=0;i<8;i++) makeStar(rand(0, window.innerWidth*1.2), rand(40,220));
+  }
+  initParallax();
+
+  /* DOM */
+  const playerEl = qs('#player');
+  const avatarWrap = qs('#avatar');
+  const nameTag = qs('#nameTag');
+  const whoEl = qs('#who');
+  const selector = qs('#selector');
+  const toast = qs('#toast');
+  const coinsEl = qs('#coins');
+  const distEl = qs('#dist');
+
+  const shopBtn = qs('#shopBtn');
+  const shop = qs('#shop');
+  const shopGrid = qs('#shopGrid');
+  const shopPreview = qs('#shopPreview');
+  const closeShop = qs('#closeShop');
+
+  const leftBtn = qs('#leftBtn');
+  const rightBtn = qs('#rightBtn');
+  const jumpZone = qs('#jumpZone');
+  const restartBtn = qs('#restartBtn');
+
+  /* Figuren: wir nutzen die süßen Inline-SVGs aus der Auswahl */
+  let selected='dog';
+  function setAvatarFromSelection(){
+    const svg = (selected==='dog' ? selector.querySelector('#cardDogBtn svg') : selector.querySelector('#cardPandaBtn svg'));
+    avatarWrap.innerHTML = svg ? svg.outerHTML : '';
+  }
+
+  /* Shop Daten (einfach, Fokus auf Vorschau) */
+  let coins=0;
+  let owned={};
+  const shopItems = {
+    hoodies:[
+      {id:'hoodie_mint', name:'Hoodie Mint', price:8, mutate:(svg)=>{ svg.querySelectorAll('rect').forEach(r=>{ const y=+r.getAttribute('y'); if(y>=52 && y<=84) r.setAttribute('fill', '#dcfff0'); }); }},
+      {id:'hoodie_pfirsich', name:'Hoodie Pfirsich', price:8, mutate:(svg)=>{ svg.querySelectorAll('rect').forEach(r=>{ const y=+r.getAttribute('y'); if(y>=52 && y<=84) r.setAttribute('fill', '#ffe6d6'); }); }},
+      {id:'hoodie_lila', name:'Hoodie Lavendel', price:8, mutate:(svg)=>{ svg.querySelectorAll('rect').forEach(r=>{ const y=+r.getAttribute('y'); if(y>=52 && y<=84) r.setAttribute('fill', '#ece3ff'); }); }},
+    ],
+    hosen:[
+      {id:'hose_blau', name:'Hose Pastellblau', price:6, mutate:(svg)=>{ svg.querySelectorAll('.legL,.legR').forEach(l=>l.setAttribute('fill','#a8ccff')); }},
+      {id:'hose_lila', name:'Hose Lila', price:6, mutate:(svg)=>{ svg.querySelectorAll('.legL,.legR').forEach(l=>l.setAttribute('fill','#cbb8ff')); }},
+      {id:'hose_minze', name:'Hose Minze', price:6, mutate:(svg)=>{ svg.querySelectorAll('.legL,.legR').forEach(l=>l.setAttribute('fill','#aeeed6')); }},
+    ],
+    hüte:[
+      {id:'hut_hellblau', name:'Kappe Hellblau', price:7, mutate:(svg)=>{ const cap = Array.from(svg.querySelectorAll('rect')).find(r=>(+r.getAttribute('y'))<=28 && (+r.getAttribute('height'))<=8); if(cap) cap.setAttribute('fill','#d9ebff'); }},
+      {id:'hut_sonne', name:'Kappe Sonne', price:7, mutate:(svg)=>{ const cap = Array.from(svg.querySelectorAll('rect')).find(r=>(+r.getAttribute('y'))<=28 && (+r.getAttribute('height'))<=8); if(cap) cap.setAttribute('fill','#ffe6a6'); }},
+      {id:'hut_lila', name:'Kappe Lila', price:7, mutate:(svg)=>{ const cap = Array.from(svg.querySelectorAll('rect')).find(r=>(+r.getAttribute('y'))<=28 && (+r.getAttribute('height'))<=8); if(cap) cap.setAttribute('fill','#e6dcff'); }},
+    ],
+    extras:[
+      {id:'extra_baeckchen', name:'Extra Rosa Bäckchen', price:5, mutate:(svg)=>{ svg.querySelectorAll('circle').forEach(c=>{ const cy=+c.getAttribute('cy')||+c.getAttribute('cy'); if(cy>=39 && cy<=43) c.setAttribute('fill','#ffcade'); }); }},
+      {id:'extra_glanz', name:'Glanz in den Augen', price:5, mutate:(svg)=>{ const whites = svg.querySelectorAll('circle'); whites.forEach(c=>{ const r=+c.getAttribute('r'); if(r && r<=1.8){ c.setAttribute('r', r+0.3); } }); }},
+    ]
+  };
+  let shopCategory='hoodies', previewSvgInitial='';
+
+  function currentAvatarClone(){
+    const svg = avatarWrap.querySelector('svg');
+    return svg ? svg.cloneNode(true) : null;
+  }
+  function renderShop(cat='hoodies'){
+    shopCategory=cat;
+    shopGrid.innerHTML='';
+    const base = currentAvatarClone();
+    previewSvgInitial = base ? base.outerHTML : '<div>Vorschau</div>';
+    shopPreview.innerHTML = previewSvgInitial;
+
+    (shopItems[cat]||[]).forEach(it=>{
+      const box=document.createElement('div'); box.className='item';
+      const thumb=document.createElement('div'); thumb.className='thumb';
+      // kleine Vorschau: wende Mutation auf einen Mini-Klon an
+      const mini = currentAvatarClone();
+      if(mini){ it.mutate(mini); thumb.innerHTML = mini.outerHTML; } else { thumb.textContent='Vorschau'; }
+      const title=document.createElement('div'); title.textContent=it.name; title.style.fontWeight='700';
+      const cost=document.createElement('div'); cost.textContent='Preis: '+it.price+' Münzen'; cost.style.color='var(--muted)';
+      const actions=document.createElement('div');
+      const btnPreview=document.createElement('button'); btnPreview.className='btn'; btnPreview.textContent='Ansehen';
+      const btnBuy=document.createElement('button'); btnBuy.className='btn'; btnBuy.textContent = owned[it.id]?'Gekauft':'Kaufen'; btnBuy.disabled=!!owned[it.id];
+
+      btnPreview.addEventListener('click', ()=>{
+        const clone = currentAvatarClone();
+        if(clone){ it.mutate(clone); shopPreview.innerHTML=''; shopPreview.appendChild(clone); }
+      });
+      btnBuy.addEventListener('click', ()=>{
+        const have=parseInt(coinsEl.textContent,10);
+        if(have>=it.price){
+          coins -= it.price; coinsEl.textContent=coins;
+          owned[it.id]=true; btnBuy.textContent='Gekauft'; btnBuy.disabled=true;
+          // Übernehme die Vorschau in den echten Avatar
+          const shown = shopPreview.querySelector('svg');
+          if(shown){ avatarWrap.innerHTML=''; avatarWrap.appendChild(shown.cloneNode(true)); }
+          showToast('Gekauft: '+it.name);
+        }else{
+          showToast('Du brauchst '+it.price+' Münzen');
+        }
+      });
+
+      actions.appendChild(btnPreview); actions.appendChild(btnBuy);
+      box.appendChild(thumb); box.appendChild(title); box.appendChild(cost); box.appendChild(actions);
+      shopGrid.appendChild(box);
+    });
+  }
+  function openShop(){ renderShop(shopCategory); shop.style.display='flex'; shop.setAttribute('aria-hidden','false'); }
+  function closeShopFn(){ shop.style.display='none'; shop.setAttribute('aria-hidden','true'); shopPreview.innerHTML=''; }
+  qsa('.shopTabs .tab').forEach(tab=>tab.addEventListener('click', ()=>renderShop(tab.dataset.cat)));
+  qs('#shopBtn').addEventListener('click', openShop);
+  qs('#closeShop').addEventListener('click', closeShopFn);
+
+  /* Endlos‑Level: Auto‑Scroll, zufällige Plattformen/Münzen/Hindernisse */
+  const level = qs('#level');
+  const chunkContainer = qs('#chunkContainer');
+  const coinContainer = qs('#coinContainer');
+  let scrollX = 0;
+  let distance = 0;
+
+  function spawnCoin(x,y){
+    const c=document.createElement('div'); c.className='coin';
+    c.style.left=x+'px'; c.style.bottom=y+'px';
+    coinContainer.appendChild(c);
+  }
+  function spawnPlat(x,y,w){
+    const p=document.createElement('div'); p.className='plat'; p.style.left=x+'px'; p.style.bottom=y+'px'; p.style.width=w+'px';
+    chunkContainer.appendChild(p);
+  }
+  function spawnBouncy(x,y){
+    const b=document.createElement('div'); b.className='bouncy'; b.style.left=x+'px'; b.style.bottom=y+'px';
+    chunkContainer.appendChild(b);
+  }
+  function spawnFriendly(x,y){
+    const f=document.createElement('div'); f.className='friendly'; f.style.left=x+'px'; f.style.bottom=y+'px';
+    chunkContainer.appendChild(f);
+  }
+
+  let nextSpawnX = 400; // wann der nächste Abschnitt generiert wird
+  function generateChunk(upToX){
+    while(nextSpawnX < upToX+1000){
+      const baseY = 140 + Math.floor(rand(0, 220));
+      const w = Math.floor(rand(180, 300));
+      spawnPlat(nextSpawnX, baseY, w);
+      // evtl. Trampolin oder freundliches Hindernis
+      if(Math.random()<0.35) spawnBouncy(nextSpawnX + rand(20, w-120), baseY+20);
+      if(Math.random()<0.30) spawnFriendly(nextSpawnX + rand(10, w-40), baseY+36);
+      // Münzenreihe
+      const coinsNum = Math.floor(rand(3,6));
+      const coinY = baseY + Math.floor(rand(40, 90));
+      let cx = nextSpawnX + 20;
+      for(let i=0;i<coinsNum;i++){ spawnCoin(cx, coinY); cx+=28; }
+      nextSpawnX += Math.floor(rand(260, 420));
+    }
+  }
+
+  /* Physik + Kollision */
+  let px=40, py=110, vx=0, vy=0, facing=1;
+  const groundY=110, gravity=-0.34, maxVx=3.0;
+  let onGround=true;
+  let jumpPower = 10.0; // erhöht: vorher 7.9
+  let coyoteTime = 0;
+  let jumpBuffer = 0;
+
+  function getPlats(){
+    return Array.from(chunkContainer.querySelectorAll('.plat')).map(el=>({
+      el,
+      x:parseFloat(el.style.left),
+      y:parseFloat(el.style.bottom),
+      w:parseFloat(getComputedStyle(el).width),
+      h:20
+    }));
+  }
+
+  function collide(nextX, nextY){
+    let newX = nextX, newY = nextY, grounded=false;
+    if(newX<0){ newX=0; vx=0; }
+    const maxX = 8000 - 92;
+    if(newX>maxX){ newX=maxX; vx=0; }
+    const pw = 92, pxLeft = newX + 6, pxRight = newX + pw - 6;
+    if(vy<=0){
+      const prevBottom = py;
+      const nextBottom = newY;
+      const plats=getPlats();
+      for(const p of plats){
+        const pTop = p.y + p.h;
+        const overlapX = !(pxRight < p.x+2 || pxLeft > p.x+p.w-2);
+        const wasAbove = (prevBottom >= pTop - 6);
+        const crosses = (nextBottom <= pTop + 2);
+        if(overlapX && wasAbove && crosses){
+          newY = pTop; vy=0; grounded=true; break;
+        }
+      }
+    }
+    if(newY < groundY){ newY = groundY; vy=0; grounded=true; }
+    return {x:newX, y:newY, grounded};
+  }
+
+  /* Steuerung */
+  let moveLeft=false, moveRight=false;
+  function bindHold(el, onDown, onUp){
+    if(!el) return;
+    el.addEventListener('touchstart', (e)=>{e.preventDefault(); onDown();}, {passive:false});
+    el.addEventListener('touchend',   (e)=>{e.preventDefault(); onUp();}, {passive:false});
+    el.addEventListener('touchcancel',(e)=>{e.preventDefault(); onUp();}, {passive:false});
+    el.addEventListener('mousedown',  (e)=>{e.preventDefault(); onDown();});
+    el.addEventListener('mouseup',    (e)=>{e.preventDefault(); onUp();});
+    el.addEventListener('mouseleave', ()=>{onUp();});
+  }
+  bindHold(leftBtn, ()=>{moveLeft=true;}, ()=>{moveLeft=false;});
+  bindHold(rightBtn, ()=>{moveRight=true;}, ()=>{moveRight=false;});
+  function tryJump(){ if(onGround || coyoteTime>0){ vy = jumpPower; onGround=false; jumpBuffer=0; coyoteTime=0; } else { jumpBuffer = 0.14; } }
+  jumpZone.addEventListener('touchstart', (e)=>{e.preventDefault(); tryJump();}, {passive:false});
+  jumpZone.addEventListener('mousedown', (e)=>{e.preventDefault(); tryJump();});
+
+  function setWalkAnim(active){
+    const svg = avatarWrap.querySelector('svg');
+    if(!svg) return;
+    const legL = svg.querySelector('.legL');
+    const legR = svg.querySelector('.legR');
+    if(legL && legR){
+      if(active){ legL.setAttribute('transform','rotate(6,36,78)'); legR.setAttribute('transform','rotate(-6,56,78)'); }
+      else { legL.removeAttribute('transform'); legR.removeAttribute('transform'); }
+    }
+  }
+
+  /* Endlos-Loop */
+  let autoScroll = 1.6; // Grundtempo
+  let lastT = performance.now();
+
+  function step(now){
+    const dt = (now - lastT)/1000; lastT = now;
+
+    // Auto-Scroll der Welt
+    scrollX += autoScroll;
+    distance += autoScroll * 0.06; // Skala für Meter-Anzeige
+    distEl.textContent = Math.floor(distance);
+
+    // Spieler Bewegung
+    if(moveLeft){ vx = Math.max(-maxVx, vx - 0.30); facing = -1; }
+    if(moveRight){ vx = Math.min( maxVx, vx + 0.30); facing = 1; }
+    if(!moveLeft && !moveRight){ vx *= 0.86; }
+    vy += gravity;
+
+    if(onGround) coyoteTime = 0.14; else coyoteTime = Math.max(0, coyoteTime - dt);
+    if(jumpBuffer>0){ jumpBuffer -= dt; if((onGround || coyoteTime>0) && jumpBuffer>0){ vy = jumpPower; onGround=false; jumpBuffer=0; coyoteTime=0; } }
+
+    // Trampoline (bouncy)
+    qsa('.bouncy').forEach(el=>{
+      const x=parseFloat(el.style.left), y=parseFloat(el.style.bottom), w=110, h=16;
+      const overlap = !(px+92 < x || px > x+w || py > y + h + 4 || py < y - 4);
+      if(overlap && vy<=0){ vy = jumpPower * 1.5; el.style.transform='scaleY(0.85)'; setTimeout(()=>el.style.transform='scaleY(1)', 120); }
+    });
+
+    // Freundliches Hindernis: sanfter Rückstoß
+    qsa('.friendly').forEach(el=>{
+      const x=parseFloat(el.style.left), y=parseFloat(el.style.bottom), w=36, h=36;
+      const overlap = !(px+92 < x || px > x+w || py > y + h || py < y - 6);
+      if(overlap){ vx -= 1.2 * Math.sign((px+46) - (x+w/2)); showToast('Oops – vorsichtig!'); }
+    });
+
+    // Kollisionsabfrage Boden/Plattform
+    const col = collide(px+vx, py+vy);
+    px = col.x; py = col.y; onGround = col.grounded;
+
+    // Münzen sammeln
+    const pR = playerEl.getBoundingClientRect();
+    qsa('#coinContainer .coin').forEach(c=>{
+      if(c._taken) return;
+      const cr = c.getBoundingClientRect();
+      if(!(pR.right<cr.left || pR.left>cr.right || pR.bottom<cr.top || pR.top>cr.bottom)){
+        c._taken = true;
+        coins++; coinsEl.textContent = coins;
+        c.style.transition='transform .2s, opacity .2s';
+        c.style.transform='translateY(-8px) scale(0.6)';
+        c.style.opacity='0';
+        setTimeout(()=>c.remove(), 200);
+      }
+    });
+
+    // Anwenden
+    playerEl.style.left = px + 'px';
+    playerEl.style.bottom = py + 'px';
+    avatarWrap.style.transform = 'scaleX(' + (facing) + ')';
+    setWalkAnim(Math.abs(vx) > 0.1 && onGround);
+
+    // Kamera verschieben
+    qs('#level').style.transform = 'translateX(' + (-scrollX) + 'px)';
+
+    // Neue Weltstücke generieren
+    const camRect = qs('#camera').getBoundingClientRect();
+    generateChunk(scrollX + camRect.width);
+
+    // Aufräumen: alte Elemente links entfernen (Performance)
+    const cutoff = scrollX - 200;
+    qsa('#chunkContainer .plat, #chunkContainer .bouncy, #chunkContainer .friendly').forEach(el=>{
+      const x=parseFloat(el.style.left); if(x < cutoff){ el.remove(); }
+    });
+    qsa('#coinContainer .coin').forEach(el=>{
+      const x=parseFloat(el.style.left); if(x < cutoff){ el.remove(); }
+    });
+
+    requestAnimationFrame(step);
+  }
+
+  /* Auswahl-Start */
+  function enableTopButtons(en){ shopBtn.disabled=!en; restartBtn.disabled=!en; }
+  function startWith(type){
+    selected = type;
+    whoEl.textContent = (type==='dog'?'Hund':'Panda');
+    nameTag.textContent = whoEl.textContent;
+    setAvatarFromSelection();
+    px=40; py=110; vx=0; vy=0; onGround=true; facing=1;
+    playerEl.style.left=px+'px'; playerEl.style.bottom=py+'px';
+    coins=0; coinsEl.textContent=coins; distance=0; distEl.textContent='0';
+    scrollX = 0; qs('#level').style.transform='translateX(0)';
+    chunkContainer.innerHTML=''; coinContainer.innerHTML='';
+    nextSpawnX = 400; generateChunk(800);
+    selector.style.display='none';
+    enableTopButtons(true);
+    showToast('Los geht’s! Sammle Münzen und probiere den Shop.');
+  }
+
+  /* Restart */
+  restartBtn.addEventListener('click', ()=>{
+    selector.style.display='flex';
+    enableTopButtons(false);
+  });
+
+  /* Events */
+  function bindSelectionEvents(){
+    const attach = (el)=>{
+      const type = el.dataset.char;
+      el.addEventListener('click', ()=>startWith(type));
+      el.addEventListener('touchstart', (e)=>{ e.preventDefault(); startWith(type); }, {passive:false});
+    };
+    attach(qs('#cardDogBtn'));
+    attach(qs('#cardPandaBtn'));
+  }
+
+  /* Toast */
+  function showToast(text){
+    toast.textContent = text;
+    toast.style.display = 'block';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toast.style.display='none', 1200);
+  }
+
+  /* Init */
+  function init(){
+    enableTopButtons(false);
+    bindSelectionEvents();
+    setAvatarFromSelection(); // initiale Anzeige
+    // Parallax leicht verschieben beim Scroll
+    let pLast=0;
+    function pStep(){
+      const dx = scrollX - pLast; pLast = scrollX;
+      par.style.transform = 'translateX(' + (-scrollX*0.2) + 'px)';
+      requestAnimationFrame(pStep);
+    }
+    requestAnimationFrame(pStep);
+    requestAnimationFrame((t)=>{ lastT=t; step(t); });
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', init); } else { setTimeout(init, 0); }
+
+})();
+</script>
+</body>
+</html>
+

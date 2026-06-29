@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>Käse‑Abenteuer – Sprung- & Gewinn-Sound</title>
+<style>
+:root{
+--bg:#111; --ui:#e69500; --accent:#ffb300;
+--cheese1:#ffe066; --cheese2:#ffb300;
+--bow:#ff4fd1; --tie:#8b1b1b; --brille:#111;
+--shadow:rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;user-select:none;touch-action:none}
+#game{position:relative;width:1100px;max-width:98vw;height:640px;max-height:96vh;background:linear-gradient(var(--cheese1),var(--cheese2));border:6px solid var(--ui);border-radius:14px;overflow:hidden}
+#ui{position:absolute;left:12px;right:12px;top:12px;display:flex;justify-content:space-between;z-index:5}
+#story,#info{background:rgba(255,255,255,.92);color:#222;font-weight:bold;border:2px solid var(--ui);border-radius:14px;padding:6px 12px}
+#world{position:absolute;inset:0;outline:none}
+#cam{position:absolute;left:0;top:0;height:100%;width:3200px;transform:translateX(0)}
+.platform{position:absolute;background:#ffd54f;border:3px solid #ffb300;border-radius:8px;box-shadow:inset 5px 6px 0 #ffe082}
+.slippery{background:#ffe88a;box-shadow:inset 5px 6px 0 #ffef9f}
+.moving{background:#ffdf72;box-shadow:inset 5px 6px 0 #ffe89d}
+/* Spieler */
+.player{position:absolute;width:44px;height:44px;transform-origin:center bottom;filter:drop-shadow(0 4px 4px var(--shadow))}
+.player .tri{position:absolute;left:50%;bottom:0;width:0;height:0;transform:translateX(-50%);border-left:22px solid transparent;border-right:22px solid transparent;border-bottom:44px solid #ffd34d}
+.holes{position:absolute;left:4px;top:8px;width:36px;height:26px;pointer-events:none}
+.hole{position:absolute;background:#ffcc40;border-radius:50%}
+.h1{width:7px;height:7px;left:2px;top:4px}
+.h2{width:5px;height:5px;left:14px;top:10px}
+.h3{width:6px;height:6px;right:4px;top:2px}
+.bow{position:absolute;left:12px;top:-2px;width:20px;height:12px}
+.bow .wing{position:absolute;width:10px;height:12px;background:var(--bow);border-radius:10px 10px 2px 2px}
+.bow .left{left:0;transform:rotate(-18deg)}
+.bow .right{right:0;transform:rotate(18deg)}
+.bow .knot{position:absolute;left:8px;top:3px;width:4px;height:6px;background:#ff7ae3;border-radius:2px}
+.tie{position:absolute;left:19px;top:14px;width:6px;height:18px}
+.tie .knot{position:absolute;left:0;top:0;width:6px;height:6px;background:var(--tie);border-radius:2px}
+.tie .tail{position:absolute;top:6px;left:-6px;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:16px solid var(--tie)}
+.glasses{position:absolute;width:34px;height:16px}
+.glasses .ring{position:absolute;top:0;width:14px;height:14px;border:3px solid var(--brille);border-radius:50%;background:transparent}
+.r1{left:0}.r2{right:0}
+.bridge{position:absolute;left:14px;top:6px;width:6px;height:2px;background:var(--brille)}
+/* Menüs */
+.screen{position:absolute;inset:0;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:10;text-align:center;padding:20px}
+h1{margin:0;font-size:32px;text-shadow:0 3px 8px var(--accent)}
+.char-select{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.char-box{background:#333;border:4px solid #fff;border-radius:12px;padding:14px;width:168px;cursor:pointer}
+.char-box.selected{border-color:#4caf50}
+.btn{padding:10px 18px;font-weight:bold;background:var(--accent);color:#111;border:none;border-radius:10px;cursor:pointer}
+.hint{color:#ddd;font-size:14px}
+.hidden{display:none!important}
+/* Touch */
+#touch{position:absolute;inset:0;pointer-events:none;z-index:9}
+.stick-wrap{position:absolute;left:18px;bottom:18px;width:140px;height:140px;background:rgba(0,0,0,.15);border:2px solid rgba(255,255,255,.4);border-radius:50%;pointer-events:auto}
+.stick-base{position:absolute;left:50%;top:50%;width:110px;height:110px;transform:translate(-50%,-50%);background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.5);border-radius:50%}
+.stick{position:absolute;left:50%;top:50%;width:64px;height:64px;transform:translate(-50%,-50%);background:rgba(255,255,255,.9);border-radius:50%}
+.jump{position:absolute;right:18px;bottom:28px;width:110px;height:110px;background:rgba(255,255,255,.9);border:3px solid rgba(0,0,0,.25);border-radius:50%;pointer-events:auto;display:flex;align-items:center;justify-content:center;color:#111;font-weight:bold}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="ui">
+    <div id="story">Sammle 8 Brillen. A=vorwärts, D=rückwärts, Space/Sprung‑Button = springen</div>
+    <div id="info">Brillen: 0 / 8</div>
+  </div>
+  <div id="world" tabindex="0" aria-label="Spielbereich">
+    <div id="cam"></div>
+  </div>
+  <div id="menu" class="screen">
+    <h1>Käse‑Abenteuer</h1>
+    <div class="hint">Wähle deinen Käse:</div>
+    <div class="char-select" id="charSel">
+      <div class="char-box" data-type="bow"><strong>Schleifen‑Käse</strong></div>
+      <div class="char-box" data-type="tie"><strong>Krawatten‑Käse</strong></div>
+    </div>
+    <button id="start" class="btn" disabled>Start</button>
+  </div>
+  <div id="win" class="screen hidden">
+    <h1>Geschafft!</h1>
+    <button id="again" class="btn">Nochmal</button>
+  </div>
+  <div id="touch" class="hidden">
+    <div class="stick-wrap" id="stickWrap">
+      <div class="stick-base"></div>
+      <div class="stick" id="stick"></div>
+    </div>
+    <div class="jump" id="jumpBtn">SPRUNG</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const menu = document.getElementById('menu');
+  const win = document.getElementById('win');
+  const startBtn = document.getElementById('start');
+  const againBtn = document.getElementById('again');
+  const charSel = document.getElementById('charSel');
+  const world = document.getElementById('world');
+  const cam = document.getElementById('cam');
+  const info = document.getElementById('info');
+
+  const touch = document.getElementById('touch');
+  const stickWrap = document.getElementById('stickWrap');
+  const stick = document.getElementById('stick');
+  const jumpBtn = document.getElementById('jumpBtn');
+
+  const TARGET = 8;
+  const WORLD_W = 3200;
+  const VH = () => world.clientHeight;
+  const VW = () => world.clientWidth;
+
+  const keys = { right:false, left:false, jump:false };
+  let joyVec = 0;
+
+  // Höherer Sprung bleibt aktiv
+  const GRAV = 0.65, ACC=0.55, MAXV=4.0, AIR=0.9, FRI=0.88, JUMP=-15.5, FRI_SLIP=0.96;
+
+  const player = { x:30, y:0, w:44, h:44, vx:0, vy:0, on:false, el:null, type:'bow' };
+  let platforms=[], movers=[], glasses=[], collected=0;
+
+  // --- WebAudio: Initialisierung & Sounds ---
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  // Sprung: kurzer „Pop“
+  function playJump() {
+    ensureAudio();
+    const ctx = audioCtx, now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const startF = 520, endF = 300;
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(startF, now);
+    osc.frequency.exponentialRampToValueAtTime(endF, now + 0.09);
+    gain.gain.setValueAtTime(0.0, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.14);
+  }
+
+  // Gewinn: „do do do doooooo“ – fröhlich (Dur)
+  // Noten (Hz, ungefähr in C‑Dur, hohe Lage): C5, D5, E5, G5, C6 (länger)
+  const WIN_NOTES = [523.25, 587.33, 659.25, 783.99, 1046.50];
+  function playWinJingle() {
+    ensureAudio();
+    const ctx = audioCtx;
+    const start = ctx.currentTime;
+    const stepDur = 0.14;   // Dauer pro kurzem „do“
+    const gap = 0.02;       // kleine Pause zwischen den kurzen Tönen
+    const lastDur = 0.45;   // längerer Schlusston „doooooo“
+
+    // vier kurze Töne
+    for(let i=0;i<4;i++){
+      const t0 = start + i*(stepDur + gap);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(WIN_NOTES[i], t0);
+      gain.gain.setValueAtTime(0.0, t0);
+      gain.gain.linearRampToValueAtTime(0.22, t0 + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + stepDur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + stepDur + 0.02);
+    }
+
+    // letzter langer Ton, etwas lauter und leichtes Vibrato
+    const tLast = start + 4*(stepDur + gap);
+    const oscL = ctx.createOscillator();
+    const gainL = ctx.createGain();
+    const vibrato = ctx.createOscillator();
+    const vibrGain = ctx.createGain();
+    oscL.type = 'sine';
+    oscL.frequency.setValueAtTime(WIN_NOTES[4], tLast);
+    // Hüllkurve
+    gainL.gain.setValueAtTime(0.0, tLast);
+    gainL.gain.linearRampToValueAtTime(0.28, tLast + 0.02);
+    gainL.gain.exponentialRampToValueAtTime(0.0001, tLast + lastDur);
+    // leichtes Vibrato
+    vibrato.frequency.value = 6; // 6 Hz
+    vibrGain.gain.value = 5;     // ±5 Hz
+    vibrato.connect(vibrGain);
+    vibrGain.connect(oscL.frequency);
+
+    oscL.connect(gainL); gainL.connect(ctx.destination);
+    oscL.start(tLast); vibrato.start(tLast);
+    oscL.stop(tLast + lastDur + 0.03); vibrato.stop(tLast + lastDur + 0.03);
+  }
+  // --- Ende WebAudio ---
+
+  function onTap(el, cb){
+    let t=false; el.addEventListener('touchstart', e=>{ t=true; e.preventDefault(); cb(e); }, {passive:false});
+    el.addEventListener('click', e=>{ if(!t) cb(e); t=false; });
+  }
+
+  // Auswahl
+  Array.from(charSel.children).forEach(card=>{
+    onTap(card, ()=>{
+      Array.from(charSel.children).forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      player.type = card.getAttribute('data-type');
+      startBtn.disabled = false;
+    });
+  });
+
+  onTap(startBtn, ()=>{
+    menu.classList.add('hidden');
+    touch.classList.remove('hidden');
+    buildLevel();
+    addPlayer();
+    world.focus();
+    requestAnimationFrame(loop);
+  });
+
+  onTap(againBtn, ()=>{
+    win.classList.add('hidden');
+    resetLevel();
+    world.focus();
+  });
+
+  onTap(world, ()=>world.focus());
+
+  world.addEventListener('keydown', e=>{
+    if(e.code==='KeyA'){ keys.right=true; e.preventDefault(); }
+    if(e.code==='KeyD'){ keys.left=true;  e.preventDefault(); }
+    if(e.code==='Space'){ keys.jump=true; e.preventDefault(); }
+  });
+  world.addEventListener('keyup', e=>{
+    if(e.code==='KeyA'){ keys.right=false; e.preventDefault(); }
+    if(e.code==='KeyD'){ keys.left=false;  e.preventDefault(); }
+    if(e.code==='Space'){ keys.jump=false; e.preventDefault(); }
+  });
+
+  // Joystick
+  let joyActive=false;
+  stickWrap.addEventListener('touchstart', e=>{
+    joyActive=true; updateJoy(e.changedTouches[0]);
+    e.preventDefault();
+  }, {passive:false});
+  stickWrap.addEventListener('touchmove', e=>{
+    if(joyActive) updateJoy(e.changedTouches[0]);
+    e.preventDefault();
+  }, {passive:false});
+  stickWrap.addEventListener('touchend', e=>{ joyActive=false; joyVec=0; centerStick(); e.preventDefault(); }, {passive:false});
+  stickWrap.addEventListener('touchcancel', e=>{ joyActive=false; joyVec=0; centerStick(); e.preventDefault(); }, {passive:false});
+  function updateJoy(t){
+    const r = stickWrap.getBoundingClientRect();
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    const dx = t.clientX - cx, dy = t.clientY - cy;
+    const maxR = r.width*0.38;
+    const len = Math.hypot(dx,dy) || 1;
+    const nx = dx/len, ny = dy/len;
+    const c = Math.min(maxR, Math.hypot(dx,dy));
+    joyVec = Math.max(-1, Math.min(1, dx / maxR));
+    stick.style.left = (r.width/2 + nx*c)+'px';
+    stick.style.top  = (r.height/2 + ny*c)+'px';
+  }
+  function centerStick(){ stick.style.left='50%'; stick.style.top='50%'; stick.style.transform='translate(-50%,-50%)'; }
+  jumpBtn.addEventListener('touchstart', e=>{ keys.jump=true; e.preventDefault(); }, {passive:false});
+  jumpBtn.addEventListener('touchend', e=>{ keys.jump=false; e.preventDefault(); }, {passive:false});
+  onTap(jumpBtn, ()=>{ keys.jump=true; setTimeout(()=>keys.jump=false,120); });
+
+  function buildLevel(){
+    cam.innerHTML=''; platforms=[]; movers=[]; glasses=[]; collected=0;
+    info.textContent = 'Brillen: 0 / '+TARGET;
+
+    // Unten: durchgehender Boden ohne Lücken
+    addPlatform(0, VH()-34, WORLD_W, 34, 'normal');
+
+    // Route oben
+    addPlatform(220, VH()-140, 160, 18, 'normal');
+    addPlatform(420, VH()-200, 140, 18, 'slippery');
+    addPlatform(600, VH()-240, 120, 18, 'normal');
+    placeGlasses(640, VH()-280);
+
+    addPlatform(820, VH()-200, 150, 18, 'normal');
+    addMoving(990, VH()-210, 80, 16, 'horizontal', 980, 1120, 2.2);
+    addPlatform(1140, VH()-220, 150, 18, 'normal');
+    placeGlasses(1080, VH()-260);
+
+    addPlatform(1320, VH()-240, 130, 18, 'slippery');
+    addPlatform(1480, VH()-280, 130, 18, 'normal');
+    placeGlasses(1510, VH()-320);
+
+    addPlatform(1700, VH()-240, 130, 18, 'normal');
+    addMoving(1840, VH()-250, 70, 16, 'horizontal', 1820, 1920, 2.0);
+    addPlatform(1960, VH()-260, 130, 18, 'normal');
+    placeGlasses(1880, VH()-300);
+
+    addPlatform(2120, VH()-300, 130, 18, 'slippery');
+    addPlatform(2280, VH()-340, 130, 18, 'normal');
+    placeGlasses(2310, VH()-380);
+
+    addPlatform(2440, VH()-300, 130, 18, 'normal');
+    addPlatform(2600, VH()-260, 130, 18, 'slippery');
+    addPlatform(2760, VH()-220, 130, 18, 'normal');
+    placeGlasses(2640, VH()-300);
+    placeGlasses(2780, VH()-260);
+
+    // Extra Brillen
+    placeGlasses(460, VH()-180);
+    placeGlasses(2140, VH()-340);
+  }
+
+  function resetLevel(){
+    buildLevel();
+    if(player.el && player.el.parentNode) player.el.parentNode.removeChild(player.el);
+    addPlayer();
+  }
+
+  function addPlayer(){
+    const el = document.createElement('div');
+    el.className='player';
+    el.innerHTML = '<div class="tri"></div><div class="holes"><div class="hole h1"></div><div class="hole h2"></div><div class="hole h3"></div></div>' +
+                   (player.type==='bow'
+                      ? '<div class="bow"><div class="wing left"></div><div class="knot"></div><div class="wing right"></div></div>'
+                      : '<div class="tie"><div class="knot"></div><div class="tail"></div></div>');
+    cam.appendChild(el);
+    player.el = el;
+
+    player.x = 30;
+    player.y = VH() - 80;
+    player.vx = 0; player.vy = 0; player.on = false;
+    drawPlayer();
+    updateCam();
+  }
+
+  function addPlatform(x,y,w,h,kind){
+    const p = document.createElement('div');
+    p.className = 'platform' + (kind==='slippery' ? ' slippery' : (kind==='moving' ? ' moving' : ''));
+    Object.assign(p.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px'});
+    cam.appendChild(p);
+    platforms.push({x,y,w,h,el:p,type:kind||'normal', isMoving:false, vx:0, vy:0});
+  }
+
+  function addMoving(x,y,w,h,mode,minPos,maxPos,speed){
+    const p = document.createElement('div');
+    p.className = 'platform moving';
+    Object.assign(p.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px'});
+    cam.appendChild(p);
+    const m = {x,y,w,h,el:p,type:'moving',mode,minPos,maxPos,speed,dir:1,isMoving:true,vx:0,vy:0};
+    platforms.push(m);
+    movers.push(m);
+  }
+
+  function placeGlasses(x,y){
+    const g = document.createElement('div');
+    g.className='glasses';
+    g.style.left=x+'px'; g.style.top=y+'px';
+    g.innerHTML='<div class="ring r1"></div><div class="ring r2"></div><div class="bridge"></div>';
+    cam.appendChild(g);
+    glasses.push({x,y,w:34,h:16,el:g,taken:false});
+  }
+
+  function drawPlayer(){
+    player.el.style.left = Math.round(player.x)+'px';
+    player.el.style.top  = Math.round(player.y)+'px';
+  }
+
+  function updateCam(){
+    const centerX = player.x + player.w/2;
+    let camX = centerX - VW()/2;
+    camX = Math.max(0, Math.min(WORLD_W - VW(), camX));
+    cam.style.transform = 'translateX(' + (-camX) + 'px)';
+  }
+
+  function aabb(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+
+  function groundUnder(x,y){
+    for(const p of platforms){
+      if(x>=p.x && x<=p.x+p.w && y>=p.y && y<=p.y+p.h) return p;
+    }
+    return null;
+  }
+
+  function updateMovers(){
+    for(const m of movers){
+      m.vx = 0; m.vy = 0;
+      if(m.mode==='horizontal'){
+        m.x += m.speed * m.dir; m.vx = m.speed * m.dir;
+        if(m.x <= m.minPos){ m.x = m.minPos; m.dir = 1; }
+        if(m.x + m.w >= m.maxPos){ m.x = m.maxPos - m.w; m.dir = -1; }
+        m.el.style.left = m.x+'px';
+      } else {
+        m.y += m.speed * m.dir; m.vy = m.speed * m.dir;
+        if(m.y <= m.minPos){ m.y = m.minPos; m.dir = 1; }
+        if(m.y + m.h >= m.maxPos){ m.y = m.maxPos - m.h; m.dir = -1; }
+        m.el.style.top = m.y+'px';
+      }
+    }
+  }
+
+  function physics(){
+    // Eingabe
+    let move = 0;
+    if(keys.right) move += 1; // A = vorwärts
+    if(keys.left)  move -= 1; // D = rückwärts
+    if(Math.abs(joyVec)>0.08) move += joyVec;
+    move = Math.max(-1, Math.min(1, move));
+
+    const onAir = !player.on;
+    const accel = ACC * (onAir ? AIR : 1);
+    player.vx += accel * move;
+    if(player.vx >  4.0) player.vx =  4.0;
+    if(player.vx < -4.0) player.vx = -4.0;
+
+    // Reibung
+    if(player.on && Math.abs(move)<0.01){
+      const under = groundUnder(player.x+player.w/2, player.y+player.h+1);
+      player.vx *= (under && under.type==='slippery') ? FRI_SLIP : FRI;
+    } else if(!player.on && Math.abs(move)<0.01){
+      player.vx *= 0.995;
+    }
+
+    // Springen (mit Sound)
+    if(keys.jump && player.on){
+      player.vy = JUMP;
+      player.on = false;
+      playJump();
+    }
+
+    // Schwerkraft
+    player.vy += GRAV;
+
+    // Bewegliche Plattformen bewegen
+    updateMovers();
+
+    // Bewegung berechnen
+    let nextX = player.x + player.vx;
+    let nextY = player.y + player.vy;
+
+    // Kollisionen Y
+    player.on = false;
+    let tempY = nextY;
+    for(const pl of platforms){
+      const overlapX = nextX + player.w > pl.x && nextX < pl.x + pl.w;
+      const overlapY = tempY + player.h > pl.y && tempY < pl.y + pl.h;
+      if(overlapX && overlapY){
+        if(player.vy > 0 && player.y + player.h <= pl.y){
+          tempY = pl.y - player.h; player.vy = 0; player.on = true;
+          if(pl.isMoving){ nextX += pl.vx; tempY += pl.vy; }
+        } else if(player.vy < 0 && player.y >= pl.y + pl.h){
+          tempY = pl.y + pl.h; player.vy = 0;
+        }
+      }
+    }
+    nextY = tempY;
+
+    // Kollisionen X
+    let tempX = nextX;
+    for(const pl of platforms){
+      const overlapX = tempX + player.w > pl.x && tempX < pl.x + pl.w;
+      const overlapY = nextY + player.h > pl.y && nextY < pl.y + pl.h;
+      if(overlapX && overlapY){
+        if(player.vx > 0 && player.x + player.w <= pl.x){ tempX = pl.x - player.w; player.vx = 0; }
+        else if(player.vx < 0 && player.x >= pl.x + pl.w){ tempX = pl.x + pl.w; player.vx = 0; }
+      }
+    }
+    nextX = tempX;
+
+    // Weltgrenzen
+    const rightB = WORLD_W - player.w;
+    if(nextX < 0){ nextX = 0; player.vx = 0; }
+    if(nextX > rightB){ nextX = rightB; player.vx = 0; }
+
+    // Boden
+    const bottomB = VH() - player.h;
+    if(nextY > bottomB){ nextY = bottomB; player.vy = 0; player.on = true; }
+
+    player.x = nextX; player.y = nextY;
+
+    // Brillen sammeln
+    for(const g of glasses){
+      if(!g.taken && aabb(player,g)){
+        g.taken = true;
+        g.el.style.opacity='0.2';
+        g.el.style.transform='scale(0.8)';
+        collected++; info.textContent='Brillen: '+collected+' / '+TARGET;
+        if(collected>=TARGET){
+          // Gewinnscreen + Jingle
+          setTimeout(()=>{
+            win.classList.remove('hidden');
+            playWinJingle();
+          }, 200);
+        }
+      }
+    }
+  }
+
+  function loop(){
+    physics();
+    drawPlayer();
+    updateCam();
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>
+
