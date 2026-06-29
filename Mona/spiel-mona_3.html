@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Wisch-Spiel: Ausweichen & Sammeln</title>
+<style>
+:root {
+  --bg: #f7fbff;
+  --text: #203040;
+  --good: #3aa6ff;
+  --player: #ff7bb0;
+  --ob1: #ffa652;
+  --ob2: #ffcf5a;
+  --ob3: #8bd17c;
+  --ob4: #c47aff;
+  --ob5: #ff82a9;
+  --ob6: #5bc8f5;
+  --ob7: #f76e6e;
+  --gem: #7d9cff;
+  --shield: #7ee7d8;
+  --danger: #ff6b6b;
+  --panel: #ffffff;
+  --shadow: rgba(0,0,0,0.12);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  overflow: hidden;
+}
+
+#game {
+  position: relative;
+  margin: 0 auto;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  touch-action: none;
+  background: linear-gradient(180deg, #f9fcff 0%, #eef7ff 100%);
+  user-select: none;
+}
+
+/* Spielfigur */
+#player {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffd6e8, #ff7bb0);
+  box-shadow: 0 8px 16px rgba(255,123,176,0.45), inset 0 4px 8px rgba(255,255,255,0.7);
+  border: 2px solid rgba(126,231,216,0.35);
+  transition: transform 0.08s;
+  will-change: transform, left, top;
+  z-index: 10;
+}
+
+#player.hurt {
+  animation: hurt 0.4s ease;
+}
+
+@keyframes hurt {
+  0%  { filter: brightness(2) saturate(0); }
+  50% { transform: scale(0.7); }
+  100%{ filter: none; }
+}
+
+/* Hindernisse */
+.obstacle {
+  position: absolute;
+  border-radius: 8px;
+  will-change: top;
+  z-index: 5;
+}
+
+/* Sammelobjekt (Punkt) */
+.gem {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(135deg, #a9bfff, var(--gem));
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  transform: rotate(0deg);
+  will-change: top, transform;
+  z-index: 6;
+  filter: drop-shadow(0 2px 4px rgba(125,156,255,0.5));
+}
+
+/* Power-Up: Schild */
+.shield-item {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background: radial-gradient(circle, #c8fff3, #52d8c4);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  will-change: top;
+  z-index: 6;
+  box-shadow: 0 0 10px rgba(82,216,196,0.6);
+}
+
+/* UI */
+#ui {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 20;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.badge {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--panel);
+  border-radius: 20px;
+  padding: 5px 12px;
+  box-shadow: 0 2px 8px var(--shadow);
+  min-width: 60px;
+  text-align: center;
+}
+
+.badge span { font-size: 18px; }
+
+#shield-indicator {
+  font-size: 22px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#shield-indicator.active { opacity: 1; }
+
+/* Herzen */
+#hearts {
+  display: flex;
+  gap: 4px;
+  font-size: 20px;
+}
+
+/* Nachricht / Wave */
+#message {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--good);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+  transition: opacity 0.3s;
+  white-space: nowrap;
+}
+
+/* Pause-Button */
+#pauseBtn {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 25;
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  pointer-events: all;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.8);
+  box-shadow: 0 2px 6px var(--shadow);
+  line-height: 1;
+}
+
+/* Overlay-Screens */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(240,248,255,0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 50;
+  text-align: center;
+  padding: 24px;
+}
+
+.screen h2 {
+  font-size: 32px;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+
+.screen h3 {
+  font-size: 20px;
+  margin: 0 0 20px;
+  color: #607080;
+  font-weight: 500;
+}
+
+.screen p {
+  font-size: 15px;
+  color: #607080;
+  margin: 0 0 24px;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+.btn {
+  display: inline-block;
+  padding: 14px 36px;
+  border-radius: 50px;
+  border: none;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, #50c2ff, #2e8fff);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(46,143,255,0.35);
+  margin: 6px;
+  transition: transform 0.1s, box-shadow 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active {
+  transform: scale(0.95) translateY(1px);
+  box-shadow: 0 2px 8px rgba(46,143,255,0.25);
+}
+
+.btn.secondary {
+  background: linear-gradient(135deg, #c2d0e0, #a0b0c0);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Emoji Effekt */
+.emoji-pop {
+  position: absolute;
+  font-size: 28px;
+  pointer-events: none;
+  z-index: 40;
+  animation: pop 0.7s ease forwards;
+}
+
+@keyframes pop {
+  0%   { opacity: 1; transform: scale(0.5) translateY(0); }
+  60%  { opacity: 1; transform: scale(1.3) translateY(-30px); }
+  100% { opacity: 0; transform: scale(1)   translateY(-60px); }
+}
+
+/* Schild-Welle */
+.shield-wave {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid var(--shield);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 8;
+  animation: wave 0.5s ease-out;
+}
+
+@keyframes wave {
+  0%   { opacity: 0.8; transform: scale(0.5); }
+  100% { opacity: 0;   transform: scale(2.5); }
+}
+
+/* Hintergrund-Partikel */
+.star {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.3;
+  background: #b8d4ff;
+  pointer-events: none;
+  animation: twinkle 3s infinite alternate;
+}
+
+@keyframes twinkle {
+  0%  { opacity: 0.15; }
+  100%{ opacity: 0.45; }
+}
+</style>
+</head>
+<body>
+<div id="game" role="main" aria-label="Ausweich-Spiel">
+
+  <!-- UI-Leiste -->
+  <div id="ui">
+    <div class="badge">⭐ <span id="score">0</span></div>
+    <div id="hearts">❤️❤️❤️</div>
+    <div class="badge">🏆 <span id="hiscore">0</span></div>
+  </div>
+
+  <div id="shield-indicator">🛡️</div>
+
+  <!-- Meldung (Wave / Punkte) -->
+  <div id="message"></div>
+
+  <!-- Spielfeld wird per JS befüllt -->
+
+  <!-- Start-Screen -->
+  <div class="screen" id="startScreen">
+    <div style="font-size:60px;margin-bottom:8px">🎮</div>
+    <h2>Ausweichen & Sammeln</h2>
+    <h3>Wisch-Endlosspiel</h3>
+    <p>Ziehe die Kugel mit dem Finger (oder der Maus) quer übers Spielfeld.<br>
+       Sammle 💎 Rhomben, nimm das 🛡️ Schild auf — es schützt kurz.</p>
+    <button class="btn" id="startBtn">Spielen ▶</button>
+  </div>
+
+  <!-- Game-Over-Screen -->
+  <div class="screen" id="overScreen" style="display:none">
+    <div id="overEmoji" style="font-size:60px;margin-bottom:8px">💥</div>
+    <h2 id="overTitle">Game Over!</h2>
+    <div id="overBody"></div>
+    <button class="btn" id="againBtn">Nochmal 🔄</button>
+    <button class="btn secondary" id="homeBtn">Startseite 🏠</button>
+  </div>
+
+  <!-- Pause-Button -->
+  <button id="pauseBtn" title="Pause">⏸</button>
+
+</div>
+
+<script>
+(function () {
+  // ─── Elemente ────────────────────────────────────────────────────────────
+  const gameEl   = document.getElementById('game');
+  const scoreEl  = document.getElementById('score');
+  const hiscEl   = document.getElementById('hiscore');
+  const heartsEl = document.getElementById('hearts');
+  const msgEl    = document.getElementById('message');
+  const shieldInd= document.getElementById('shield-indicator');
+  const startScr = document.getElementById('startScreen');
+  const overScr  = document.getElementById('overScreen');
+  const overTitle= document.getElementById('overTitle');
+  const overBody = document.getElementById('overBody');
+  const overEmoji= document.getElementById('overEmoji');
+  const startBtn = document.getElementById('startBtn');
+  const againBtn = document.getElementById('againBtn');
+  const homeBtn  = document.getElementById('homeBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+
+  // ─── Zustand ─────────────────────────────────────────────────────────────
+  let playerEl, running = false, paused = false;
+  let px, py, targetX, lastT = 0, dtTotal = 0;
+  let score = 0, lives = 3, shielded = false, shieldTimer = 0;
+  let obstacles = [], gems = [], shieldItems = [];
+  let speed = 2.2;
+  let spawnTimer = 0, gemTimer = 0, shieldSpawnTimer = 0;
+  let vw, vh;
+  let animId = null;
+  let msgTimeout = null;
+
+  // ─── Highscore ───────────────────────────────────────────────────────────
+  let highscore = 0;
+  try {
+    const v = localStorage.getItem('wisch_hs');
+    highscore = v ? parseInt(v, 10) : 0;
+  } catch (e) {}
+  hiscEl.textContent = highscore;
+
+  function saveHS() {
+    try { localStorage.setItem('wisch_hs', String(highscore)); } catch (e) {}
+  }
+
+  // ─── Hintergrund-Sterne ──────────────────────────────────────────────────
+  function addStars() {
+    for (let i = 0; i < 18; i++) {
+      const s = document.createElement('div');
+      s.className = 'star';
+      const sz = rand(3, 8);
+      s.style.cssText = `width:${sz}px;height:${sz}px;left:${rand(0,100)}%;top:${rand(0,100)}%;animation-delay:${rand(0,3)}s;animation-duration:${rand(2,5)}s`;
+      gameEl.appendChild(s);
+    }
+  }
+
+  // ─── Hilfsfunktionen ─────────────────────────────────────────────────────
+  function rand(min, max) { return Math.random() * (max - min) + min; }
+
+  function setPos(el, x, y) {
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+  }
+
+  function rect(el) {
+    const r = el.getBoundingClientRect();
+    const gr = gameEl.getBoundingClientRect();
+    return { x: r.left - gr.left, y: r.top - gr.top, w: r.width, h: r.height };
+  }
+
+  function collide(a, b) {
+    return !(a.x + a.w < b.x || a.x > b.x + b.w || a.y + a.h < b.y || a.y > b.y + b.h);
+  }
+
+  // ─── Spieler erstellen ───────────────────────────────────────────────────
+  function createPlayer() {
+    if (playerEl) playerEl.remove();
+    playerEl = document.createElement('div');
+    playerEl.id = 'player';
+    gameEl.appendChild(playerEl);
+    vw = gameEl.clientWidth;
+    vh = gameEl.clientHeight;
+    px = vw * 0.5;
+    py = vh * 0.7;
+    targetX = px;
+    setPos(playerEl, px - 26, py - 26);
+  }
+
+  // ─── Objekt-Erzeugung ────────────────────────────────────────────────────
+  function spawnObstacle() {
+    const el = document.createElement('div');
+    el.className = 'obstacle';
+    const w = rand(40, 120);
+    const h = rand(18, 38);
+    const x = rand(8, vw - w - 8);
+    // Farbpaare für lebendige Zwei-Ton-Gradienten
+    const colorPairs = [
+      ['#ffa652', '#ff6b1a'],  // orange
+      ['#ffcf5a', '#f0a800'],  // gelb
+      ['#8bd17c', '#3daa4e'],  // grün
+      ['#c47aff', '#8b2be2'],  // lila
+      ['#ff82a9', '#e0284f'],  // pink-rot
+      ['#5bc8f5', '#1a8fd1'],  // hellblau
+      ['#f76e6e', '#c41c1c'],  // rot
+      ['#4dd9ac', '#1a9e73'],  // türkis
+      ['#ffb347', '#d66f00'],  // dunkelorange
+      ['#a0d8ef', '#4682b4'],  // stahlblau
+    ];
+    const pair = colorPairs[Math.floor(Math.random() * colorPairs.length)];
+    const vy = rand(0.4, 1.2) * speed;
+    el.style.cssText = `width:${w}px;height:${h}px;left:${x}px;top:-${h+10}px;background:linear-gradient(135deg,${pair[0]},${pair[1]});box-shadow:0 4px 12px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.4);border-radius:10px;`;
+    el.dataset.vy = vy.toFixed(3);
+    el.dataset.type = 'ob';
+    gameEl.appendChild(el);
+    obstacles.push(el);
+  }
+
+  function spawnGem() {
+    const el = document.createElement('div');
+    el.className = 'gem';
+    const x = rand(16, vw - 38);
+    el.style.left = x + 'px';
+    el.style.top  = '-30px';
+    el.dataset.vy = (rand(0.5, 1.0) * speed).toFixed(3);
+    el.dataset.rot = '0';
+    gameEl.appendChild(el);
+    gems.push(el);
+  }
+
+  function spawnShieldItem() {
+    const el = document.createElement('div');
+    el.className = 'shield-item';
+    const x = rand(16, vw - 46);
+    el.style.left = x + 'px';
+    el.style.top  = '-40px';
+    el.dataset.vy = (rand(0.5, 0.9) * speed).toFixed(3);
+    gameEl.appendChild(el);
+    shieldItems.push(el);
+  }
+
+  // ─── Reset ───────────────────────────────────────────────────────────────
+  function resetGame() {
+    [...obstacles, ...gems, ...shieldItems].forEach(e => e.remove());
+    obstacles = []; gems = []; shieldItems = [];
+    score = 0; lives = 3; shielded = false; shieldTimer = 0;
+    speed = 2.2; dtTotal = 0; spawnTimer = 0; gemTimer = 0; shieldSpawnTimer = 0;
+    scoreEl.textContent = '0';
+    updateHearts();
+    shieldInd.classList.remove('active');
+    if (playerEl) { playerEl.style.opacity = '1'; playerEl.classList.remove('hurt'); }
+  }
+
+  function updateHearts() {
+    const full = Math.max(0, lives);
+    heartsEl.textContent = '❤️'.repeat(full) + '🖤'.repeat(Math.max(0, 3 - full));
+  }
+
+  // ─── Nachricht anzeigen ──────────────────────────────────────────────────
+  function showMsg(text, color = 'var(--good)') {
+    if (msgTimeout) clearTimeout(msgTimeout);
+    msgEl.textContent = text;
+    msgEl.style.color = color;
+    msgEl.style.opacity = '1';
+    msgTimeout = setTimeout(() => { msgEl.style.opacity = '0'; }, 1100);
+  }
+
+  // ─── Treffer / Game Over ─────────────────────────────────────────────────
+  function takeHit() {
+    if (shielded) {
+      // Schild-Welle anzeigen
+      const wave = document.createElement('div');
+      wave.className = 'shield-wave';
+      wave.style.cssText = `width:52px;height:52px;left:${px-26}px;top:${py-26}px;`;
+      gameEl.appendChild(wave);
+      setTimeout(() => wave.remove(), 600);
+      shielded = false;
+      shieldTimer = 0;
+      shieldInd.classList.remove('active');
+      return;
+    }
+    lives--;
+    updateHearts();
+    playerEl.classList.add('hurt');
+    setTimeout(() => playerEl.classList.remove('hurt'), 450);
+    showMsg(lives > 0 ? `Achtung! ${lives}x ❤️` : '', 'var(--danger)');
+    if (lives <= 0) endGame();
+  }
+
+  function endGame() {
+    running = false;
+    cancelAnimationFrame(animId);
+
+    if (score > highscore) {
+      highscore = score;
+      saveHS();
+      hiscEl.textContent = highscore;
+      overTitle.textContent = '🎉 Neuer Rekord!';
+      overEmoji.textContent = '🏆';
+      overBody.innerHTML = `<p><strong>Punkte: ${score}</strong><br>Du hast deinen Highscore gebrochen!</p>`;
+    } else {
+      overTitle.textContent = 'Game Over!';
+      overEmoji.textContent = '💥';
+      overBody.innerHTML = `<p>Punkte: <strong>${score}</strong><br>Highscore: ${highscore}</p>`;
+    }
+    overScr.style.display = 'flex';
+    pauseBtn.style.display = 'none';
+  }
+
+  // ─── Update ──────────────────────────────────────────────────────────────
+  function update(dt) {
+    dtTotal += dt;
+
+    // Geschwindigkeit nimmt mit der Zeit zu (bis 3x)
+    const timeFactor = Math.min(1 + dtTotal / 30000, 3);
+    speed = 2.2 * timeFactor + score * 0.003;
+
+    // Schild-Timer
+    if (shielded) {
+      shieldTimer -= dt;
+      if (shieldTimer <= 0) {
+        shielded = false;
+        shieldInd.classList.remove('active');
+      }
+    }
+
+    // Spawn-Timer
+    spawnTimer += dt;
+    const spawnInterval = Math.max(300, 900 - score * 8);
+    while (spawnTimer >= spawnInterval) {
+      spawnTimer -= spawnInterval;
+      spawnObstacle();
+    }
+
+    gemTimer += dt;
+    if (gemTimer > 1200) { gemTimer = 0; spawnGem(); }
+
+    shieldSpawnTimer += dt;
+    if (shieldSpawnTimer > 8000) { shieldSpawnTimer = 0; spawnShieldItem(); }
+
+    // Spieler bewegen (sanft zum Ziel)
+    px += (targetX - px) * 0.25;
+    px = Math.max(26, Math.min(vw - 26, px));
+    setPos(playerEl, px - 26, py - 26);
+
+    const pr = { x: px - 20, y: py - 20, w: 40, h: 40 };
+
+    // Hindernisse bewegen
+    moveItems(obstacles, pr, handleObstacleHit);
+
+    // Gems bewegen
+    moveGems(pr);
+
+    // Shields bewegen
+    moveShields(pr);
+  }
+
+  function moveItems(arr, pr, onHit) {
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const el = arr[i];
+      const vy = parseFloat(el.dataset.vy) * speed;
+      const y = parseFloat(el.style.top) + vy;
+      if (y > vh + 60) { el.remove(); arr.splice(i, 1); continue; }
+      el.style.top = y + 'px';
+      const er = rect(el);
+      if (collide(pr, er)) { el.remove(); arr.splice(i, 1); onHit(el); }
+    }
+  }
+
+  function handleObstacleHit() { takeHit(); }
+
+  function moveGems(pr) {
+    for (let i = gems.length - 1; i >= 0; i--) {
+      const el = gems[i];
+      const vy = parseFloat(el.dataset.vy) * speed;
+      const y  = parseFloat(el.style.top) + vy;
+      let rot  = parseFloat(el.dataset.rot) + 3;
+      el.dataset.rot = rot;
+      if (y > vh + 40) { el.remove(); gems.splice(i, 1); continue; }
+      el.style.top = y + 'px';
+      el.style.transform = `rotate(${rot}deg)`;
+      const er = rect(el);
+      if (collide(pr, er)) {
+        el.remove(); gems.splice(i, 1);
+        score += 10;
+        scoreEl.textContent = score;
+        if (score > highscore) { highscore = score; hiscEl.textContent = highscore; saveHS(); }
+        // Emoji-Pop
+        const pop = document.createElement('div');
+        pop.className = 'emoji-pop';
+        pop.textContent = score % 50 === 0 ? '🌟' : '💎';
+        pop.style.cssText = `left:${px-14}px;top:${py-50}px;`;
+        gameEl.appendChild(pop);
+        setTimeout(() => pop.remove(), 750);
+        if (score % 50 === 0) showMsg(`+50 Super! 🌟`);
+      }
+    }
+  }
+
+  function moveShields(pr) {
+    for (let i = shieldItems.length - 1; i >= 0; i--) {
+      const el = shieldItems[i];
+      const vy = parseFloat(el.dataset.vy) * speed;
+      const y  = parseFloat(el.style.top) + vy;
+      if (y > vh + 40) { el.remove(); shieldItems.splice(i, 1); continue; }
+      el.style.top = y + 'px';
+      const er = rect(el);
+      if (collide(pr, er)) {
+        el.remove(); shieldItems.splice(i, 1);
+        shielded = true;
+        shieldTimer = 3000;
+        shieldInd.classList.add('active');
+        showMsg('🛡️ Schild aktiv!', 'var(--shield)');
+      }
+    }
+  }
+
+  // ─── Game Loop ───────────────────────────────────────────────────────────
+  function loop(ts) {
+    if (!running) return;
+    if (paused) { animId = requestAnimationFrame(loop); return; }
+    const dt = Math.min(ts - lastT, 50); // max 50ms-Schritt
+    lastT = ts;
+    update(dt);
+    animId = requestAnimationFrame(loop);
+  }
+
+  function startLoop() {
+    lastT = performance.now();
+    animId = requestAnimationFrame(loop);
+  }
+
+  // ─── Touch / Maussteuerung ───────────────────────────────────────────────
+  function getTouch(e) {
+    return e.touches ? e.touches[0] : e;
+  }
+
+  let activeId = null;
+
+  function onStart(e) {
+    if (!running || paused) return;
+    const t = getTouch(e);
+    activeId = t.identifier ?? 'mouse';
+    const gr = gameEl.getBoundingClientRect();
+    targetX = t.clientX - gr.left;
+    e.preventDefault();
+  }
+
+  function onMove(e) {
+    if (!running || paused) return;
+    let t = null;
+    if (e.touches) {
+      for (const touch of e.touches) {
+        if ((touch.identifier ?? 'mouse') === activeId) { t = touch; break; }
+      }
+    } else { t = e; }
+    if (!t) return;
+    const gr = gameEl.getBoundingClientRect();
+    targetX = t.clientX - gr.left;
+    e.preventDefault();
+  }
+
+  gameEl.addEventListener('touchstart', onStart, { passive: false });
+  gameEl.addEventListener('touchmove',  onMove,  { passive: false });
+  gameEl.addEventListener('mousedown',  onStart);
+  gameEl.addEventListener('mousemove',  (e) => { if (e.buttons > 0) onMove(e); });
+
+  // Tastatur-Unterstützung
+  document.addEventListener('keydown', (e) => {
+    if (!running) return;
+    if (e.key === 'ArrowLeft')  targetX = Math.max(26, targetX - 30);
+    if (e.key === 'ArrowRight') targetX = Math.min(vw - 26, targetX + 30);
+    if (e.key === ' ' || e.key === 'Escape') togglePause();
+  });
+
+  // ─── Pause ───────────────────────────────────────────────────────────────
+  function togglePause() {
+    if (!running) return;
+    paused = !paused;
+    pauseBtn.textContent = paused ? '▶' : '⏸';
+    if (paused) showMsg('⏸ Pause', 'var(--text)');
+    else { msgEl.style.opacity = '0'; }
+  }
+
+  pauseBtn.addEventListener('click', togglePause);
+
+  // ─── Spielstart ──────────────────────────────────────────────────────────
+  function startGame() {
+    startScr.style.display = 'none';
+    overScr.style.display  = 'none';
+    pauseBtn.style.display = 'block';
+    resetGame();
+    createPlayer();
+    running = true;
+    paused  = false;
+    pauseBtn.textContent = '⏸';
+    startLoop();
+  }
+
+  startBtn.addEventListener('click', startGame);
+  againBtn.addEventListener('click', startGame);
+  homeBtn.addEventListener('click', () => {
+    overScr.style.display = 'none';
+    startScr.style.display = 'flex';
+    pauseBtn.style.display = 'none';
+  });
+
+  // ─── Init ────────────────────────────────────────────────────────────────
+  addStars();
+
+  // Fenstergrösse
+  window.addEventListener('resize', () => {
+    vw = gameEl.clientWidth;
+    vh = gameEl.clientHeight;
+  });
+
+})();
+</script>
+</body>
+</html>
