@@ -1,0 +1,34 @@
+==================================================
+=== SPIELE-PORTAL ROTHRIST - INFO FÜR MACOS ===
+==================================================
+
+Dieses Dokument enthält wichtige Informationen zur Arbeit an diesem Projekt auf dem MacBook.
+(Auf dem anderen PC gibt es eine ähnliche Datei für Windows).
+
+1. ORDNERPFAD AUF DIESEM MAC:
+   /Users/saschaluscher/Library/CloudStorage/OneDrive-Persönlich/1-Meine Ablage/_Schule Rothrist/01_Unterricht/5_Klasse/04_Medien_und_Informatik/Spiel programmieren/Spiele
+
+2. SYNCHRONISATION (Automatisches Skript):
+   Um deine Arbeit mit dem anderen PC abzugleichen, kannst du das Skript "sync.sh" verwenden:
+   - Öffne ein Terminal in diesem Ordner.
+   - Falls das Skript nicht startet, mache es zuerst ausführbar mit:
+     chmod +x sync.sh
+   - Starte die Synchronisation mit:
+     ./sync.sh
+   
+   Das Skript führt automatisch folgende Schritte aus:
+   1. Holt alle neuen Spiele/Änderungen vom anderen PC herunter (git pull).
+   2. Speichert all deine lokalen Änderungen mit einem Zeitstempel (git commit).
+   3. Lädt deine Änderungen hoch (git push), damit du am anderen PC weiterarbeiten kannst.
+
+3. MANUELLE GIT-BEFEHLE (Alternative):
+   - Herunterladen:
+     git pull
+   - Hochladen (nach Änderungen):
+     git add .
+     git commit -m "Deine commit-nachricht"
+     git push
+
+4. PROJEKT DETAILS:
+   - GitHub Remote URL (HTTPS): https://github.com/KI-Lehrer/spiel.git
+   - Live-Link zum Portal: https://ki-lehrer.github.io/spiel/
