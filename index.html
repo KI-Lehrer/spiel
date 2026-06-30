@@ -13,7 +13,9 @@
   <style>
     /* CSS Variables for design system */
     :root {
-      --bg-dark: #090b11;
+      --bg-main: #090b11;
+      --bg-gradient: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+                     radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.05) 0%, transparent 40%);
       --bg-card: rgba(255, 255, 255, 0.03);
       --bg-card-hover: rgba(255, 255, 255, 0.07);
       --border-card: rgba(255, 255, 255, 0.08);
@@ -22,6 +24,38 @@
       --text-muted: #94a3b8;
       --font-family: 'Plus Jakarta Sans', sans-serif;
       --transition-speed: 0.3s;
+      
+      --header-title-gradient: linear-gradient(to right, #ffffff, #e2e8f0, #94a3b8);
+      --bg-modal: rgba(5, 7, 12, 0.98);
+      --bg-modal-header: #0f121d;
+      --border-modal: rgba(255, 255, 255, 0.08);
+      --button-bg: rgba(255, 255, 255, 0.05);
+      --button-border: rgba(255, 255, 255, 0.1);
+      
+      --theme-toggle-bg: rgba(255, 255, 255, 0.05);
+      --theme-toggle-border: rgba(255, 255, 255, 0.1);
+    }
+
+    body.light-mode {
+      --bg-main: #f8fafc;
+      --bg-gradient: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.06) 0%, transparent 40%),
+                     radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.06) 0%, transparent 40%);
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --border-card: #e2e8f0;
+      --border-card-hover: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      
+      --header-title-gradient: linear-gradient(to right, #0f172a, #334155, #64748b);
+      --bg-modal: rgba(255, 255, 255, 0.98);
+      --bg-modal-header: #f1f5f9;
+      --border-modal: #e2e8f0;
+      --button-bg: #e2e8f0;
+      --button-border: #cbd5e1;
+      
+      --theme-toggle-bg: #ffffff;
+      --theme-toggle-border: #cbd5e1;
     }
 
     /* Reset and Base Styles */
@@ -32,16 +66,15 @@
     }
 
     body {
-      background-color: var(--bg-dark);
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.05) 0%, transparent 40%);
+      background-color: var(--bg-main);
+      background-image: var(--bg-gradient);
       background-attachment: fixed;
       color: var(--text-main);
       font-family: var(--font-family);
       min-height: 100vh;
       overflow-x: hidden;
       padding: 2rem 1.5rem;
+      transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease, background-image var(--transition-speed) ease;
     }
 
     /* Container layout */
@@ -159,6 +192,7 @@
     .card.eric { --theme-color: #8b5cf6; --glow: rgba(139, 92, 246, 0.25); }
     .card.xenja { --theme-color: #ff6fb3; --glow: rgba(255, 111, 179, 0.25); }
     .card.jaro { --theme-color: #ef4444; --glow: rgba(239, 68, 68, 0.25); }
+    .card.anaya { --theme-color: #d946ef; --glow: rgba(217, 70, 239, 0.25); }
 
     .card::before {
       content: '';
@@ -206,7 +240,7 @@
     .card:hover .author-badge {
       background: var(--theme-color);
       border-color: var(--theme-color);
-      color: var(--bg-dark);
+      color: #ffffff;
       box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
     }
 
@@ -281,7 +315,7 @@
     .card:hover .play-btn {
       background: var(--theme-color);
       border-color: var(--theme-color);
-      color: var(--bg-dark);
+      color: #ffffff;
       box-shadow: 0 4px 15px var(--glow);
     }
 
@@ -292,7 +326,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(5, 7, 12, 0.98);
+      background: var(--bg-modal);
       z-index: 9999;
       display: none;
       flex-direction: column;
@@ -307,13 +341,13 @@
 
     /* Modal Navigation Bar */
     .player-header {
-      background: #0f121d;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--bg-modal-header);
+      border-bottom: 1px solid var(--border-modal);
       padding: 0.75rem 1.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      color: #fff;
+      color: var(--text-main);
     }
 
     .player-title-container {
@@ -323,9 +357,9 @@
     }
 
     .player-back-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background: var(--button-bg);
+      border: 1px solid var(--button-border);
+      color: var(--text-main);
       padding: 0.5rem 1rem;
       border-radius: 8px;
       font-size: 0.85rem;
@@ -338,8 +372,8 @@
     }
 
     .player-back-btn:hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: rgba(255, 255, 255, 0.25);
+      background: var(--bg-card-hover);
+      border-color: var(--border-card-hover);
     }
 
     .player-game-info {
@@ -368,7 +402,7 @@
 
     .player-action-btn {
       background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: 1px solid var(--button-border);
       color: var(--text-muted);
       padding: 0.5rem 1rem;
       border-radius: 8px;
@@ -382,8 +416,9 @@
     }
 
     .player-action-btn:hover {
-      border-color: #fff;
-      color: #fff;
+      background: var(--button-bg);
+      border-color: var(--border-card-hover);
+      color: var(--text-main);
     }
 
     /* Iframe Wrapper */
@@ -408,7 +443,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: #090b11;
+      background: var(--bg-main);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -437,7 +472,7 @@
       margin-top: 5rem;
       color: var(--text-muted);
       font-size: 0.85rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      border-top: 1px solid var(--border-card);
       padding-top: 2rem;
     }
 
@@ -469,9 +504,90 @@
         display: none; /* Hide button text on mobile to save space */
       }
     }
+
+    /* Theme Toggle Button Styling */
+    .theme-toggle-btn {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      background: var(--theme-toggle-bg);
+      border: 1px solid var(--theme-toggle-border);
+      color: var(--text-main);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      z-index: 100;
+    }
+
+    .theme-toggle-btn:hover {
+      transform: scale(1.05);
+      background: var(--bg-card-hover);
+      border-color: var(--border-card-hover);
+    }
+
+    .theme-toggle-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      position: absolute;
+      transition: transform 0.5s ease, opacity 0.5s ease;
+    }
+
+    body.light-mode .sun-icon {
+      opacity: 1;
+      transform: rotate(0);
+    }
+    body.light-mode .moon-icon {
+      opacity: 0;
+      transform: rotate(90deg);
+    }
+
+    body:not(.light-mode) .sun-icon {
+      opacity: 0;
+      transform: rotate(-90deg);
+    }
+    body:not(.light-mode) .moon-icon {
+      opacity: 1;
+      transform: rotate(0);
+    }
+
+    @media (max-width: 600px) {
+      .theme-toggle-btn {
+        top: 1rem;
+        right: 1rem;
+        width: 38px;
+        height: 38px;
+      }
+      .theme-toggle-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+    }
   </style>
 </head>
 <body>
+
+  <button id="themeToggle" class="theme-toggle-btn" aria-label="Farbschema umschalten">
+    <!-- Sun Icon (visible in light mode) -->
+    <svg class="sun-icon" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4" fill="none" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+    <!-- Moon Icon (visible in dark mode) -->
+    <svg class="moon-icon" viewBox="0 0 24 24">
+      <path d="M12 3a9 9 0 1 0 9 9 9.75 9.75 0 0 0-.67-3.4 6.75 6.75 0 0 1-7.93-7.93A9.75 9.75 0 0 0 12 3z" />
+    </svg>
+  </button>
 
   <div class="container">
     
@@ -483,7 +599,7 @@
       <div class="stats">
         <div class="stat-item">
           <div class="stat-dot"></div>
-          <span>15 Spiele online</span>
+          <span>16 Spiele online</span>
         </div>
       </div>
     </header>
@@ -810,6 +926,26 @@
         </button>
       </div>
 
+      <!-- Card: Anaya -->
+      <div class="card anaya" onclick="playGame('Anaya', 'regenbogen-race.html', 'Regenbogen-Race', '#d946ef')">
+        <div class="author-badge">
+          <svg style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Anaya
+        </div>
+        <div class="icon-container">
+          <!-- Checkered Flag / Racing Icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="M4 15c1-1 2.5-1 3.5 0s2.5 1 3.5 0 2.5-1 3.5 0 2.5 1 3.5 0V5c-1 1-2.5 1-3.5 0s-2.5-1-3.5 0-2.5 1-3.5 0-2.5-1-3.5 0v10zm0 6h2" />
+          </svg>
+        </div>
+        <h2 class="game-title">Regenbogen-Race</h2>
+        <p class="game-desc">Wähle deine Strecke und dein Kart aus und rase los! Weiche Hindernissen aus und sammle Punkte in diesem bunten Regenbogen-Rennen.</p>
+        <button class="play-btn">
+          <svg style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Jetzt spielen
+        </button>
+      </div>
+
     </main>
 
     <footer>
@@ -917,6 +1053,23 @@
       if (event.key === 'Escape' && modal.classList.contains('active')) {
         closePlayer();
       }
+    });
+
+    // Theme Toggle Logic
+    const themeToggleBtn = document.getElementById('themeToggle');
+    
+    // Check local storage or system preference
+    const savedTheme = localStorage.getItem('theme');
+    const systemPrefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+    
+    if (savedTheme === 'light' || (!savedTheme && systemPrefersLight)) {
+      document.body.classList.add('light-mode');
+    }
+    
+    themeToggleBtn.addEventListener('click', () => {
+      document.body.classList.toggle('light-mode');
+      const currentTheme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
+      localStorage.setItem('theme', currentTheme);
     });
   </script>
 </body>
