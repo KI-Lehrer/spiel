@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Mein Labyrinth</title>
+<style>
+:root{
+  --bg:#f4f6fb;
+  --wall:#2d2f33;
+  --goal:#f5c400;
+  --player:#2b6dff;
+  --accent:#e33b3b;
+  --silver:#bfc6d1;
+  --pink:#ff6fb3;
+  --violet:#7b5cff;
+  --ui:#16202a;
+  --grid: #e0e4ee;
+}
+*{box-sizing:border-box; touch-action: manipulation;}
+html,body{margin:0;padding:0;background:var(--bg);color:#111;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+h1{font-size:20px;margin:8px 0 6px}
+.wrap{display:flex;flex-direction:column;gap:10px;max-width:980px;margin:0 auto;padding:10px}
+.topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:#fff;border:1px solid #dfe3eb;border-radius:10px;padding:10px 12px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+label{font-size:13px;color:#333}
+select,button,input[type="color"]{
+  font-size:14px;padding:8px 10px;border:1px solid #cfd7e3;border-radius:8px;background:#fff
+}
+button{background:var(--ui);color:#fff;border:none;cursor:pointer}
+button.alt{background:#fff;color:#111;border:1px solid #cfd7e3}
+.status{display:flex;gap:10px;align-items:center}
+.status .pill{
+  padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #cfd7e3;font-size:13px
+}
+.boardwrap{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.canvasBox{
+  position:relative;background:#fff;border:1px solid #dfe3eb;border-radius:12px;padding:8px;
+  box-shadow:0 2px 10px rgba(0,0,0,.05)
+}
+canvas{display:block;background: linear-gradient(90deg,transparent 0 1px, var(--grid) 1px 2px),
+  linear-gradient(0deg,transparent 0 1px, var(--grid) 1px 2px);
+  background-size:20px 20px;
+  border-radius:10px}
+.mini{
+  width:160px; height:160px;
+  border:1px solid #dfe3eb; border-radius:10px;
+  background:#fff; padding:6px
+}
+.mini canvas{background:none}
+.controls{
+  display:grid;grid-template-columns:64px 64px 64px;gap:8px;justify-content:center;align-items:center;margin:6px auto 0
+}
+.btnPad{
+  width:64px;height:64px;border-radius:10px;border:1px solid #cfd7e3;background:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.06);display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:16px;color:#111
+}
+.btnPad:active{transform:scale(.98)}
+.legend{font-size:12px;color:#555}
+.editor{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.shapePreview{
+  width:36px;height:36px;border-radius:8px;border:2px solid #00000010;
+  background:var(--player);display:flex;align-items:center;justify-content:center
+}
+.shapePreview.circle{border-radius:50%}
+.shapePreview.triangle{background:conic-gradient(from 0deg at 50% 66%, transparent 0 33%, currentColor 0 66%, transparent 0)}
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:16px;background:#111;color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;opacity:0;transition:.3s;pointer-events:none
+}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="group editor">
+      <label>Figur:</label>
+      <select id="shape">
+        <option value="square">Quadrat</option>
+        <option value="circle">Kreis</option>
+        <option value="triangle">Dreieck</option>
+      </select>
+      <label>Farbe:</label>
+      <select id="color">
+        <option value="blue" selected>Blau</option>
+        <option value="gold">Gold</option>
+        <option value="red">Rot</option>
+        <option value="silver">Silbern</option>
+        <option value="pink">Rosa</option>
+        <option value="violet">Violett</option>
+      </select>
+      <div id="preview" class="shapePreview" title="Vorschau"></div>
+    </div>
+    <div class="group">
+      <label>Stufe:</label>
+      <select id="level">
+        <option value="easy">Einfach</option>
+        <option value="medium">Mittel</option>
+        <option value="hard">Schwer</option>
+      </select>
+      <button id="restart">Neu starten</button>
+    </div>
+    <div class="status">
+      <div class="pill">Zeit: <span id="time">0</span>s</div>
+      <div class="pill">Züge: <span id="steps">0</span></div>
+    </div>
+  </div>
+
+  <div class="boardwrap">
+    <div class="canvasBox">
+      <canvas id="game" width="480" height="480" aria-label="Labyrinth"></canvas>
+      <div class="controls" aria-label="Steuerkreuz">
+        <div></div>
+        <button class="btnPad" data-dy="-1" data-dx="0">▲</button>
+        <div></div>
+        <button class="btnPad" data-dy="0" data-dx="-1">◀</button>
+        <button class="btnPad" data-dy="0" data-dx="0" id="wait">•</button>
+        <button class="btnPad" data-dy="0" data-dx="1">▶</button>
+        <div></div>
+        <button class="btnPad" data-dy="1" data-dx="0">▼</button>
+        <div></div>
+      </div>
+      <div class="legend">Erreiche das goldene Feld. Wische oder tippe auf die Pfeile.</div>
+    </div>
+    <div class="mini">
+      <canvas id="mini" width="140" height="140" aria-label="Minikarte"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  const colorMap = {
+    blue:   getComputedStyle(document.documentElement).getPropertyValue('--player').trim(),
+    gold:   getComputedStyle(document.documentElement).getPropertyValue('--goal').trim(),
+    red:    getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+    silver: getComputedStyle(document.documentElement).getPropertyValue('--silver').trim(),
+    pink:   getComputedStyle(document.documentElement).getPropertyValue('--pink').trim(),
+    violet: getComputedStyle(document.documentElement).getPropertyValue('--violet').trim()
+  };
+
+  const WALL=1, EMPTY=0, START=2, GOAL=3;
+
+  // Schwierigkeitskonfiguration
+  const levelCfg = {
+    easy:   { cols: 15, rows: 15, cell: 32, time: 60,  extraPaths: 6  },
+    medium: { cols: 19, rows: 19, cell: 26, time: 75,  extraPaths: 3  },
+    hard:   { cols: 25, rows: 25, cell: 20, time: 90,  extraPaths: 0  }
+  };
+
+  // ── Maze-Generator (Recursive Backtracking) ──────────────────────────
+  // Das Labyrinth wird auf einem logischen Raster (cols/2 x rows/2) generiert
+  // und dann auf die volle Grid-Größe (cols x rows) expandiert, wobei
+  // Wände zwischen den Zellen entfernt werden.
+
+  function shuffle(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]]=[arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  function generateMaze(cols, rows, extraPaths){
+    // cols/rows müssen ungerade sein für perfektes Grid
+    const C = (cols%2===0) ? cols+1 : cols;
+    const R = (rows%2===0) ? rows+1 : rows;
+
+    // Alles als Wand starten
+    const g = Array.from({length:R}, ()=> new Array(C).fill(WALL));
+
+    // Logische Zellen: nur ungerade Koordinaten
+    const visited = Array.from({length:R}, ()=> new Array(C).fill(false));
+
+    function carve(cx, cy){
+      visited[cy][cx] = true;
+      g[cy][cx] = EMPTY;
+      const dirs = shuffle([[0,-2],[0,2],[-2,0],[2,0]]);
+      for(const [dx,dy] of dirs){
+        const nx=cx+dx, ny=cy+dy;
+        if(nx>0&&nx<C-1&&ny>0&&ny<R-1&&!visited[ny][nx]){
+          // Wand zwischen aktueller und nächster Zelle entfernen
+          g[cy+dy/2][cx+dx/2] = EMPTY;
+          carve(nx, ny);
+        }
+      }
+    }
+
+    // Start oben-links (1,1)
+    carve(1, 1);
+
+    // Extra Pfade: zufällig Wände entfernen → macht Labyrinth leichter
+    if(extraPaths > 0){
+      let added = 0;
+      let attempts = 0;
+      while(added < extraPaths && attempts < 2000){
+        attempts++;
+        // nur innere, gerade Koordinaten (das sind Wände zwischen Zellen)
+        const wy = 2 + 2*Math.floor(Math.random()*Math.floor((R-3)/2));
+        const wx = 1 + 2*Math.floor(Math.random()*Math.floor((C-1)/2));
+        if(g[wy][wx]===WALL){
+          g[wy][wx]=EMPTY;
+          added++;
+        }
+        const wy2 = 1 + 2*Math.floor(Math.random()*Math.floor((R-1)/2));
+        const wx2 = 2 + 2*Math.floor(Math.random()*Math.floor((C-3)/2));
+        if(wx2<C-1 && g[wy2][wx2]===WALL){
+          g[wy2][wx2]=EMPTY;
+          added++;
+        }
+      }
+    }
+
+    // Start oben-links, Ziel unten-rechts (jeweils nächste freie Zelle)
+    g[1][1] = START;
+    g[R-2][C-2] = GOAL;
+
+    return g;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+
+  const gameCanvas = document.getElementById('game');
+  const miniCanvas = document.getElementById('mini');
+  const g = gameCanvas.getContext('2d');
+  const m = miniCanvas.getContext('2d');
+  const levelSel  = document.getElementById('level');
+  const restartBtn = document.getElementById('restart');
+  const stepsEl   = document.getElementById('steps');
+  const timeEl    = document.getElementById('time');
+  const shapeSel  = document.getElementById('shape');
+  const colorSel  = document.getElementById('color');
+  const preview   = document.getElementById('preview');
+  const toast     = document.getElementById('toast');
+
+  let grid, cell, player, goal, steps=0, remaining=0, timer=null, running=false;
+  let playerColor = 'blue';
+  let playerShape = 'square';
+  let currentLvlCfg = null;
+
+  function showToast(msg, ms=1500){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'), ms);
+  }
+
+  function colorValue(name){ return colorMap[name] || name; }
+
+  function updatePreview(){
+    preview.style.color      = colorValue(colorSel.value);
+    preview.style.background = colorValue(colorSel.value);
+    preview.classList.toggle('circle',   shapeSel.value==='circle');
+    preview.classList.toggle('triangle', shapeSel.value==='triangle');
+    preview.classList.toggle('square',   shapeSel.value==='square');
+  }
+  updatePreview();
+
+  colorSel.addEventListener('change', ()=>{ playerColor=colorSel.value; updatePreview(); draw(); drawMini(); });
+  shapeSel.addEventListener('change', ()=>{ playerShape=shapeSel.value; updatePreview(); draw(); drawMini(); });
+
+  function findCell(value){
+    for(let y=0;y<grid.length;y++){
+      for(let x=0;x<grid[0].length;x++){
+        if(grid[y][x]===value) return {x,y};
+      }
+    }
+    return {x:1,y:1};
+  }
+
+  function loadLevel(name){
+    const cfg = levelCfg[name];
+    currentLvlCfg = cfg;
+
+    // Neues zufälliges Labyrinth generieren
+    grid = generateMaze(cfg.cols, cfg.rows, cfg.extraPaths);
+    cell = cfg.cell;
+
+    const cols = grid[0].length;
+    const rows = grid.length;
+    gameCanvas.width  = Math.min(520, cols * cell);
+    gameCanvas.height = Math.min(520, rows * cell);
+
+    const s    = findCell(START);
+    const gPos = findCell(GOAL);
+    player = {x:s.x,    y:s.y};
+    goal   = {x:gPos.x, y:gPos.y};
+
+    steps = 0;
+    stepsEl.textContent = steps;
+    remaining = cfg.time;
+    timeEl.textContent  = remaining;
+    stopTimer();
+    startTimer();
+    running = true;
+    draw();
+    drawMini();
+    showToast('Neues Labyrinth: ' + (name==='easy'?'Einfach':name==='medium'?'Mittel':'Schwer'));
+  }
+
+  function startTimer(){
+    timer = setInterval(()=>{
+      if(!running) return;
+      remaining--;
+      timeEl.textContent = remaining;
+      if(remaining<=10 && remaining>=0){
+        if(remaining%2===0) showToast('Zeit läuft: '+remaining+'s', 900);
+      }
+      if(remaining<=0){
+        running=false;
+        stopTimer();
+        showToast('Zeit abgelaufen! Versuche es erneut.');
+      }
+      drawMini();
+    },1000);
+  }
+
+  function stopTimer(){ if(timer){ clearInterval(timer); timer=null; } }
+
+  function isWalkable(nx, ny){
+    if(ny<0||ny>=grid.length||nx<0||nx>=grid[0].length) return false;
+    const v = grid[ny][nx];
+    return v===EMPTY || v===GOAL || v===START;
+  }
+
+  function move(dx, dy){
+    if(!running) return;
+    const nx = player.x + dx;
+    const ny = player.y + dy;
+    if(isWalkable(nx, ny)){
+      player.x = nx;
+      player.y = ny;
+      steps++;
+      stepsEl.textContent = steps;
+      draw();
+      drawMini();
+      if(player.x===goal.x && player.y===goal.y){
+        running=false;
+        stopTimer();
+        showToast('🎉 Geschafft! Zeit übrig: '+remaining+'s | Züge: '+steps, 3000);
+      }
+    }
+  }
+
+  // Touch-Steuerung (Wischen)
+  let touchStart=null;
+  gameCanvas.addEventListener('touchstart', (e)=>{
+    const t = e.changedTouches[0];
+    touchStart = {x:t.clientX, y:t.clientY};
+  }, {passive:true});
+  gameCanvas.addEventListener('touchmove', (e)=>{ e.preventDefault(); }, {passive:false});
+  gameCanvas.addEventListener('touchend', (e)=>{
+    const t = e.changedTouches[0];
+    if(!touchStart) return;
+    const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y;
+    const absX=Math.abs(dx), absY=Math.abs(dy);
+    if(absX>20||absY>20){
+      if(absX>absY){ move(dx>0?1:-1,0); }
+      else          { move(0,dy>0?1:-1); }
+    }
+    touchStart=null;
+  }, {passive:true});
+
+  // Pfeil-Buttons
+  document.querySelectorAll('.btnPad').forEach(btn=>{
+    btn.addEventListener('touchstart', (e)=>{
+      const dx=parseInt(btn.getAttribute('data-dx'));
+      const dy=parseInt(btn.getAttribute('data-dy'));
+      if(!isNaN(dx)&&!isNaN(dy)) move(dx,dy);
+      e.preventDefault();
+    }, {passive:false});
+    btn.addEventListener('click', ()=>{
+      const dx=parseInt(btn.getAttribute('data-dx'));
+      const dy=parseInt(btn.getAttribute('data-dy'));
+      if(!isNaN(dx)&&!isNaN(dy)) move(dx,dy);
+    });
+  });
+
+  // Tastatur
+  window.addEventListener('keydown', (e)=>{
+    if(e.key==='ArrowUp')    { e.preventDefault(); move(0,-1); }
+    else if(e.key==='ArrowDown')  { e.preventDefault(); move(0,1); }
+    else if(e.key==='ArrowLeft')  { e.preventDefault(); move(-1,0); }
+    else if(e.key==='ArrowRight') { e.preventDefault(); move(1,0); }
+  });
+
+  levelSel.addEventListener('change', ()=> loadLevel(levelSel.value));
+  restartBtn.addEventListener('click', ()=> loadLevel(levelSel.value));
+
+  // ── Zeichenfunktionen ────────────────────────────────────────────────
+
+  function drawCell(ctx, x, y, type, size){
+    const pad=1, px=x*size, py=y*size;
+    if(type===WALL){
+      ctx.fillStyle='#2d2f33';
+      ctx.fillRect(px,py,size,size);
+      ctx.fillStyle='rgba(255,255,255,.06)';
+      ctx.fillRect(px,py,size,2);
+      ctx.fillRect(px,py,2,size);
+    } else if(type===GOAL){
+      ctx.fillStyle='#f5c400';
+      ctx.fillRect(px+pad,py+pad,size-2*pad,size-2*pad);
+      ctx.fillStyle='rgba(255,255,255,.3)';
+      ctx.fillRect(px+pad,py+pad,size-2*pad,(size-2*pad)*.4);
+    }
+  }
+
+  function drawPlayer(ctx, x, y, size){
+    const px=x*size, py=y*size;
+    ctx.save();
+    ctx.fillStyle   = colorValue(playerColor);
+    ctx.strokeStyle = 'rgba(0,0,0,.25)';
+    ctx.lineWidth   = Math.max(1,size*0.06);
+    const inset=size*0.2;
+    if(playerShape==='square'){
+      ctx.fillRect(px+inset,py+inset,size-2*inset,size-2*inset);
+      ctx.strokeRect(px+inset,py+inset,size-2*inset,size-2*inset);
+    } else if(playerShape==='circle'){
+      const r=(size-2*inset)/2;
+      ctx.beginPath();
+      ctx.arc(px+size/2,py+size/2,r,0,Math.PI*2);
+      ctx.fill(); ctx.stroke();
+    } else if(playerShape==='triangle'){
+      ctx.beginPath();
+      ctx.moveTo(px+size/2,py+inset);
+      ctx.lineTo(px+size-inset,py+size-inset);
+      ctx.lineTo(px+inset,py+size-inset);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function draw(){
+    const cols=grid[0].length, rows=grid.length;
+    const scaleX=gameCanvas.width/(cols*cell), scaleY=gameCanvas.height/(rows*cell);
+    const s=Math.min(scaleX,scaleY);
+    g.clearRect(0,0,gameCanvas.width,gameCanvas.height);
+    g.save();
+    g.scale(s,s);
+    g.fillStyle='#ffffff';
+    g.fillRect(0,0,cols*cell,rows*cell);
+    for(let y=0;y<rows;y++){
+      for(let x=0;x<cols;x++){
+        drawCell(g,x,y,grid[y][x],cell);
+      }
+    }
+    drawPlayer(g,player.x,player.y,cell);
+    g.restore();
+  }
+
+  function drawMini(){
+    const rows=grid.length, cols=grid[0].length;
+    const cw=miniCanvas.width, ch=miniCanvas.height;
+    m.clearRect(0,0,cw,ch);
+    const cellMini=Math.min(cw/cols,ch/rows);
+    for(let y=0;y<rows;y++){
+      for(let x=0;x<cols;x++){
+        const v=grid[y][x], px=x*cellMini, py=y*cellMini;
+        if(v===WALL){ m.fillStyle='#94a0b2'; m.fillRect(px,py,cellMini,cellMini); }
+        else if(v===GOAL){ m.fillStyle=colorValue('gold'); m.fillRect(px+1,py+1,cellMini-2,cellMini-2); }
+      }
+    }
+    m.fillStyle=colorValue(playerColor);
+    m.fillRect(player.x*cellMini+1,player.y*cellMini+1,Math.max(2,cellMini-2),Math.max(2,cellMini-2));
+    m.strokeStyle='#cfd7e3';
+    m.strokeRect(.5,.5,cols*cellMini-1,rows*cellMini-1);
+    // Zeitbalken
+    const ratio=Math.max(0,remaining/(currentLvlCfg?.time||60));
+    m.fillStyle='#222';
+    m.fillRect(6,ch-14,cw-12,8);
+    m.fillStyle=ratio>0.33?'#31c06a':ratio>0.15?'#ffb000':'#e33b3b';
+    m.fillRect(6,ch-14,(cw-12)*ratio,8);
+  }
+
+  // Start
+  playerColor = colorSel.value;
+  playerShape  = shapeSel.value;
+  loadLevel(levelSel.value);
+})();
+</script>
+</body>
+</html>

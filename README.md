@@ -23,7 +23,7 @@ Die Spiele sind in den jeweiligen Schüler-Ordnern abgelegt:
 * **Leandro**: `Leandro/auto_parcours.html` ("Auto Parcours")
 * **Sarina**: `Sarina/Schulflur.html` ("Schulflur")
 * **Eric**: `Eric/spiel-eric.html` ("Münz-Sammler")
-* **Xenja**: `Xenja/spiel-xenja.html` ("Mein Labyrinth")
+* **Xenja**: `Xenja/Xenja_Labyrinth.html` ("Mein Labyrinth")
 * **Jaro**: `Jaro/spiel-jaro.html` ("Jump-and-Run")
 * **Anaya**: `Anaya/regenbogen-race.html` ("Regenbogen-Race")
 
